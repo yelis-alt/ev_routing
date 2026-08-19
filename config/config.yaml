@@ -1,0 +1,4 @@
+openrouteservice:
+  request:
+    url: https://api.openrouteservice.org/v2/directions/driving-car
+  api: ${OPENROUTESERVICE_API_KEY}
