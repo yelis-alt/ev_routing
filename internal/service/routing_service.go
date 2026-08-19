@@ -13,8 +13,8 @@ const (
 	finishStationId = math.MaxInt32
 )
 
-// RoutingService builds the station graph used for route planning, using
-// OpenRouteService to compute the distance/duration of each edge.
+// RoutingService builds the routing graph over V = {S,D} ∪ C_k, using
+// OpenRouteService for each edge's distance/duration.
 type RoutingService struct {
 	ORS *Service
 }
@@ -24,20 +24,12 @@ func NewRoutingService(ors *Service) *RoutingService {
 	return &RoutingService{ORS: ors}
 }
 
-// GetAdjacencyMatrix orders the request's start point, finish point and
-// candidate charging stations (see filterCandidateStations) into a single
-// list, then calls OpenRouteService once per unordered station pair to
-// compute each direction's cost separately: energy cost (Z_s) priced at the
-// nearest candidate's tariff, plus charging cost (Z_ch) at the destination
-// station under a charge-to-full policy. Directions that violate the
-// model's constraints (no edge into the start, none out of the finish) or
-// that the departure charge can't cover (C_i >= S_ij/Q(T)) are omitted from
-// the matrix entirely, so callers can treat a missing edge as "not
-// traversable".
+// GetAdjacencyMatrix builds V's edges (see buildDirectedEdge); a missing
+// edge means that direction is forbidden or infeasible.
 func (rs *RoutingService) GetAdjacencyMatrix(routeRequest *dto.RouteRequestDTO) (map[int]map[int]dto.Edge, error) {
 	stations := buildOrderedStationList(routeRequest)
 	candidateStations := stations[1 : len(stations)-1]
-	efficiency := efficiencyKmPerKWh(routeRequest.Temperature)
+	consumption := specificConsumptionKWhPer100Km(routeRequest.Temperature, routeRequest.SpendOpt)
 
 	adjacencyMatrix := make(map[int]map[int]dto.Edge, len(stations))
 	for _, station := range stations {
@@ -65,10 +57,15 @@ func (rs *RoutingService) GetAdjacencyMatrix(routeRequest *dto.RouteRequestDTO) 
 			tripDuration := hoursToDuration(route.TripDuration)
 			nearTariff := nearestStationTariff(candidateStations, from.Coords, to.Coords)
 
-			if edge, ok := buildDirectedEdge(from, to, route.Distance, tripDuration, efficiency, nearTariff, routeRequest); ok {
+			var avgSpeedKmH float64
+			if route.TripDuration > 0 {
+				avgSpeedKmH = route.Distance / route.TripDuration
+			}
+
+			if edge, ok := buildDirectedEdge(from, to, route.Distance, tripDuration, avgSpeedKmH, consumption, nearTariff, routeRequest); ok {
 				adjacencyMatrix[from.Id][to.Id] = edge
 			}
-			if edge, ok := buildDirectedEdge(to, from, route.Distance, tripDuration, efficiency, nearTariff, routeRequest); ok {
+			if edge, ok := buildDirectedEdge(to, from, route.Distance, tripDuration, avgSpeedKmH, consumption, nearTariff, routeRequest); ok {
 				adjacencyMatrix[to.Id][from.Id] = edge
 			}
 		}
@@ -77,10 +74,7 @@ func (rs *RoutingService) GetAdjacencyMatrix(routeRequest *dto.RouteRequestDTO) 
 	return adjacencyMatrix, nil
 }
 
-// buildOrderedStationList merges the request's start point and finish point
-// with its candidate charging stations (see filterCandidateStations) into a
-// single list ordered start-first, finish-last, with the candidates sorted
-// by ID in between.
+// buildOrderedStationList is V ordered S, C_k (by id), D.
 func buildOrderedStationList(routeRequest *dto.RouteRequestDTO) []dto.StationDTO {
 	candidateStations := filterCandidateStations(routeRequest)
 
@@ -95,16 +89,14 @@ func buildOrderedStationList(routeRequest *dto.RouteRequestDTO) []dto.StationDTO
 	return ordered
 }
 
-// hoursToDuration converts a duration expressed in fractional hours (as
-// returned by OpenRouteService) into a time.Duration.
+// hoursToDuration converts fractional hours (as returned by
+// OpenRouteService) into a time.Duration.
 func hoursToDuration(hours float64) time.Duration {
 	return time.Duration(hours * float64(time.Hour))
 }
 
-// getRouteNodesFromIds walks the request's ordered station list and, for
-// every station on the winning path, accumulates distance/cost/duration from
-// the adjacency matrix edge connecting it to the previous station on the
-// path. Shared by GeneticRouteService and DijkstraRouteService.
+// getRouteNodesFromIds accumulates Z and distance/duration along pathIds.
+// Shared by GeneticRouteService and DijkstraRouteService.
 func getRouteNodesFromIds(
 	adjacencyMatrix map[int]map[int]dto.Edge,
 	pathIds []int,
@@ -147,6 +139,7 @@ func getRouteNodesFromIds(
 			routeNode.Cost = costCum
 			routeNode.ChargeDuration = chargeDuration
 			routeNode.ReachDuration = reachDurationCum
+			routeNode.SlotId = edge.SlotId
 		} else {
 			routeNode.Distance = 0.0
 			routeNode.Cost = 0.0

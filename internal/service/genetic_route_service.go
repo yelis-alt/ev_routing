@@ -15,9 +15,8 @@ const (
 	minParentsForCrossover = 3
 )
 
-// GeneticRouteService searches an adjacency matrix (as built by
-// RoutingService.GetAdjacencyMatrix) for the cheapest start-to-finish path
-// using a genetic algorithm.
+// GeneticRouteService searches an adjacency matrix (from
+// RoutingService.GetAdjacencyMatrix) for the cheapest path via a GA.
 type GeneticRouteService struct{}
 
 // NewGeneticRouteService builds a GeneticRouteService.
@@ -25,9 +24,8 @@ func NewGeneticRouteService() *GeneticRouteService {
 	return &GeneticRouteService{}
 }
 
-// GetRouteWithEvolution encodes each candidate path as a DNA map of node Id
-// -> included(1)/excluded(0) and evolves it via mutation and crossover until
-// genSuccessRep valid paths have been found, keeping the cheapest one seen.
+// GetRouteWithEvolution encodes each path as a DNA map (node id ->
+// included) and evolves it via mutation/crossover, keeping the cheapest valid one.
 func (s *GeneticRouteService) GetRouteWithEvolution(
 	adjacencyMatrix map[int]map[int]dto.Edge,
 	routeRequest *dto.RouteRequestDTO,
@@ -140,9 +138,8 @@ func (s *GeneticRouteService) GetMutation(generation dto.GenerationDTO, geneIds 
 	return generation
 }
 
-// GetCrossover combines two prior generations' genes; until at least
-// minParentsForCrossover prior generations exist it falls back to a
-// mutation.
+// GetCrossover combines two prior generations' genes; falls back to a
+// mutation until at least minParentsForCrossover prior generations exist.
 func (s *GeneticRouteService) GetCrossover(generation dto.GenerationDTO, geneIds []int) dto.GenerationDTO {
 	parentDnas := generation.Parents
 	if len(parentDnas) < minParentsForCrossover {

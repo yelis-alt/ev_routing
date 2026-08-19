@@ -57,9 +57,8 @@ func (rc *RouteController) handleDijkstra(w http.ResponseWriter, r *http.Request
 	writeJSON(w, http.StatusOK, routeNodes)
 }
 
-// decodeAndBuildMatrix decodes the request body into a RouteRequestDTO and
-// builds its adjacency matrix. On failure it writes the error response
-// itself and returns ok=false.
+// decodeAndBuildMatrix decodes the request body and builds its adjacency
+// matrix; on failure it writes the error response itself and returns ok=false.
 func (rc *RouteController) decodeAndBuildMatrix(
 	w http.ResponseWriter,
 	r *http.Request,

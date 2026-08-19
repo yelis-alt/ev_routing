@@ -7,9 +7,8 @@ import (
 	"ev_routing/internal/dto"
 )
 
-// DijkstraRouteService searches an adjacency matrix (as built by
-// RoutingService.GetAdjacencyMatrix) for the cheapest start-to-finish path
-// using Dijkstra's algorithm.
+// DijkstraRouteService searches an adjacency matrix (from
+// RoutingService.GetAdjacencyMatrix) for the cheapest path via Dijkstra.
 type DijkstraRouteService struct{}
 
 // NewDijkstraRouteService builds a DijkstraRouteService.
@@ -17,10 +16,8 @@ func NewDijkstraRouteService() *DijkstraRouteService {
 	return &DijkstraRouteService{}
 }
 
-// GetRouteWithDijkstra finalizes, each round, the true minimum-cost
-// unvisited node and relaxes its outgoing edges, until every reachable node
-// has been processed, then walks the predecessor chain back from the finish
-// node to recover the cheapest path.
+// GetRouteWithDijkstra relaxes the true minimum-cost unvisited node each
+// round, then walks the predecessor chain back from finish to recover the path.
 func (s *DijkstraRouteService) GetRouteWithDijkstra(
 	adjacencyMatrix map[int]map[int]dto.Edge,
 	routeRequest *dto.RouteRequestDTO,

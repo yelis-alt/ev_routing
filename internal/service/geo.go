@@ -11,8 +11,7 @@ const (
 	kmPerDegree   = 111.32
 )
 
-// haversineDistanceKm returns the great-circle distance between a and b, in
-// kilometers.
+// haversineDistanceKm is the great-circle distance between a and b, km.
 func haversineDistanceKm(a, b dto.CoordsDTO) float64 {
 	lat1 := a.Latitude * math.Pi / 180
 	lat2 := b.Latitude * math.Pi / 180
@@ -25,10 +24,8 @@ func haversineDistanceKm(a, b dto.CoordsDTO) float64 {
 	return 2 * earthRadiusKm * math.Asin(math.Sqrt(h))
 }
 
-// distancePointToSegmentKm approximates the distance from p to the line
-// segment a-b, in kilometers, by projecting onto a local flat plane
-// centered on a. This is accurate enough for the short (a few km) buffer
-// checks this package uses it for; it is not a true geodesic distance.
+// distancePointToSegmentKm approximates the distance from p to segment
+// a-b, km, via flat-plane projection; not a true geodesic distance.
 func distancePointToSegmentKm(p, a, b dto.CoordsDTO) float64 {
 	latScale := math.Cos(a.Latitude * math.Pi / 180)
 

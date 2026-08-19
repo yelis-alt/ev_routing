@@ -9,36 +9,34 @@ import (
 )
 
 const (
-	// candidateBufferKm is the width of the corridor around the direct
-	// S-D line that a station must fall within to be considered a
-	// charging candidate.
+	// candidateBufferKm is the Buffer() width, km.
 	candidateBufferKm = 5.0
 
-	// maxCandidateStations is the upper bound on the number of candidate
-	// stations (k when the vehicle's remaining range is negligible
-	// compared to the trip distance).
+	// maxCandidateStations is k's coefficient (30 in k = 30(1-...)).
 	maxCandidateStations = 30
 )
 
-// efficiencyKmPerKWh implements Q(T): the EV's energy efficiency, in
-// kilometers of range per kWh, as a function of ambient temperature (°C).
-func efficiencyKmPerKWh(temperature float64) float64 {
-	return -0.00254*temperature*temperature + 0.110*temperature + 7.20
+// specificConsumptionKWhPer100Km is E(T).
+func specificConsumptionKWhPer100Km(temperature, e0 float64) float64 {
+	switch {
+	case temperature < 25:
+		return e0 / (1 - 5.1e-5*math.Pow(25-temperature, 2.45))
+	case temperature > 25:
+		return e0 / (1 - 1.2e-3*math.Pow(temperature-25, 2))
+	default:
+		return e0
+	}
 }
 
-// energyForDistanceKWh converts a distance into the energy (kWh) needed to
-// cover it at the given efficiency (km/kWh).
-func energyForDistanceKWh(distanceKm, efficiency float64) float64 {
-	return distanceKm / efficiency
+// energyForDistanceKWh is E(T)/100 * S_ij.
+func energyForDistanceKWh(distanceKm, consumptionPer100Km float64) float64 {
+	return consumptionPer100Km / 100 * distanceKm
 }
 
-// candidateCount implements k = 30(1 - R_EV/(R_EV+D_remain)): the number of
-// charging-station candidates shrinks as the vehicle's remaining range
-// (R_EV, from its current charge level) grows relative to the remaining
-// straight-line trip distance (D_remain).
+// candidateCount is k = 30(1 - R_EV/(R_EV+D_remain)).
 func candidateCount(routeRequest *dto.RouteRequestDTO) int {
-	efficiency := efficiencyKmPerKWh(routeRequest.Temperature)
-	remainingRangeKm := routeRequest.AccLevel * efficiency
+	consumption := specificConsumptionKWhPer100Km(routeRequest.Temperature, routeRequest.SpendOpt)
+	remainingRangeKm := routeRequest.AccLevel / consumption * 100
 	remainingTripKm := haversineDistanceKm(routeRequest.StartCoords, routeRequest.FinishCoords)
 
 	k := maxCandidateStations * (1 - remainingRangeKm/(remainingRangeKm+remainingTripKm))
@@ -49,15 +47,8 @@ func candidateCount(routeRequest *dto.RouteRequestDTO) int {
 	return int(math.Round(k))
 }
 
-// filterCandidateStations implements
-// C_k = Top_k(RTree(Buffer(Line(S,D), 5km))): it keeps stations within
-// candidateBufferKm of the straight S-D line, then takes the k closest to
-// that line (Top_k here means "least detour from the direct route" - the
-// model doesn't state a ranking criterion, and this is the most natural
-// one absent a stated alternative). No real R-tree is built since the
-// station counts involved don't warrant one; a linear scan does the same
-// filtering. The result is re-sorted by station ID to match the ordering
-// buildOrderedStationList expects.
+// filterCandidateStations is C_k = Top_k(RTree(Buffer(Line(S,D), 5km))).
+// Top_k = least-detour stations; a linear scan stands in for the R-tree.
 func filterCandidateStations(routeRequest *dto.RouteRequestDTO) []dto.StationDTO {
 	start := routeRequest.StartCoords
 	finish := routeRequest.FinishCoords
@@ -97,9 +88,7 @@ func filterCandidateStations(routeRequest *dto.RouteRequestDTO) []dto.StationDTO
 	return candidates
 }
 
-// nearestStationTariff returns the price (r_near) of the candidate station
-// nearest to the segment a-b, or 0 if there are no candidates to price the
-// segment against.
+// nearestStationTariff is r_ij^near.
 func nearestStationTariff(candidates []dto.StationDTO, a, b dto.CoordsDTO) float64 {
 	if len(candidates) == 0 {
 		return 0
@@ -115,23 +104,64 @@ func nearestStationTariff(candidates []dto.StationDTO, a, b dto.CoordsDTO) float
 		}
 	}
 
-	return float64(nearest.Price)
+	return cheapestActiveSlotPrice(nearest.Slots)
 }
 
-// buildDirectedEdge computes the directed i->j edge's cost under the
-// deterministic "charge to full at every station visited" policy: the
-// departure charge at i is routeRequest.AccLevel if i is the start, or
-// AccMax otherwise (since every prior stop tops up to full before leaving).
-// It enforces the model's constraints: no edge into the start (x_ij=0 when
-// j=S), no edge out of the finish (x_ij=0 when i=D), and no edge whose
-// energy requirement the departure charge can't cover (C_i >= S_ij/Q(T)).
-// ok is false when the edge is forbidden or infeasible, in which case it
-// should be omitted from the adjacency matrix entirely.
+// cheapestActiveSlotPrice is min(r_jm) over active slots.
+func cheapestActiveSlotPrice(slots []dto.SlotDTO) float64 {
+	price := 0.0
+	found := false
+	for _, slot := range slots {
+		if !slot.IsActive {
+			continue
+		}
+		if !found || slot.Price < price {
+			price = slot.Price
+			found = true
+		}
+	}
+
+	return price
+}
+
+// selectBestSlot is the x_jm decision: the active slot minimizing
+// Z_w+Z_ch for chargeAmountKWh (sum_m x_jm <= 1).
+func selectBestSlot(
+	slots []dto.SlotDTO,
+	chargeAmountKWh, consumptionPer100Km, avgSpeedKmH float64,
+) (slot dto.SlotDTO, waitCost, chargeCost float64, chargeDuration time.Duration, ok bool) {
+	bestTotal := math.MaxFloat64
+
+	for _, s := range slots {
+		if !s.IsActive || s.Power <= 0 {
+			continue
+		}
+
+		sChargeCost := s.Price * chargeAmountKWh
+		sWaitCost := consumptionPer100Km / 100 * s.Price * avgSpeedKmH * s.WaitTime
+		total := sChargeCost + sWaitCost
+
+		if total < bestTotal {
+			bestTotal = total
+			slot = s
+			waitCost = sWaitCost
+			chargeCost = sChargeCost
+			chargeDuration = hoursToDuration(chargeAmountKWh / s.Power)
+			ok = true
+		}
+	}
+
+	return slot, waitCost, chargeCost, chargeDuration, ok
+}
+
+// buildDirectedEdge is edge i->j under a "charge to full" policy: prices
+// Z_s+Z_w+Z_ch, enforcing x_ij=0 and C_i >= E(T)/100*S_ij; ok=false omits it.
 func buildDirectedEdge(
 	i, j dto.StationDTO,
 	distanceKm float64,
 	tripDuration time.Duration,
-	efficiency float64,
+	avgSpeedKmH float64,
+	consumptionPer100Km float64,
 	nearTariff float64,
 	routeRequest *dto.RouteRequestDTO,
 ) (dto.Edge, bool) {
@@ -144,7 +174,7 @@ func buildDirectedEdge(
 		departureCharge = routeRequest.AccLevel
 	}
 
-	energyNeeded := energyForDistanceKWh(distanceKm, efficiency)
+	energyNeeded := energyForDistanceKWh(distanceKm, consumptionPer100Km)
 	if departureCharge < energyNeeded {
 		return dto.Edge{}, false
 	}
@@ -152,24 +182,29 @@ func buildDirectedEdge(
 	arrivalCharge := departureCharge - energyNeeded
 	driveCost := nearTariff * energyNeeded
 
-	var chargeCost float64
-	var chargeDuration time.Duration
-	if j.Id != finishStationId {
-		chargeAmount := routeRequest.AccMax - arrivalCharge
-		if chargeAmount < 0 {
-			chargeAmount = 0
-		}
-
-		chargeCost = float64(j.Price) * chargeAmount
-		if j.Power > 0 {
-			chargeDuration = hoursToDuration(chargeAmount / float64(j.Power))
-		}
+	edge := dto.Edge{
+		Distance:     distanceKm,
+		TripDuration: tripDuration,
+		Cost:         driveCost,
 	}
 
-	return dto.Edge{
-		Distance:       distanceKm,
-		TripDuration:   tripDuration,
-		ChargeDuration: chargeDuration,
-		Cost:           driveCost + chargeCost,
-	}, true
+	if j.Id == finishStationId {
+		return edge, true
+	}
+
+	chargeAmount := routeRequest.AccMax - arrivalCharge
+	if chargeAmount <= 0 {
+		return edge, true
+	}
+
+	slot, waitCost, chargeCost, chargeDuration, ok := selectBestSlot(j.Slots, chargeAmount, consumptionPer100Km, avgSpeedKmH)
+	if !ok {
+		return dto.Edge{}, false
+	}
+
+	edge.SlotId = slot.Id
+	edge.ChargeDuration = chargeDuration
+	edge.Cost += waitCost + chargeCost
+
+	return edge, true
 }
