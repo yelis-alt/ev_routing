@@ -60,7 +60,17 @@ version control).
 go run ./cmd/server
 ```
 
-The server listens on `:8080`.
+The server listens on `:8080`. Each search strategy logs its own progress
+and total duration to stdout as it runs.
+
+### Docker
+
+```sh
+docker compose up --build
+```
+
+Reads `OPENROUTESERVICE_API_KEY` from `.env` (see Configuration above) and
+publishes the server on `:8080`.
 
 ## API
 
@@ -182,10 +192,12 @@ never charging stops.
 ## Project layout
 
 ```
-cmd/server          entry point
+cmd/server           entry point
 config/              config loading and config.yaml
 internal/dto/        request/response types
 internal/controller/ HTTP handlers
 internal/service/    cost model, routing graph, Dijkstra/genetic/VNS/branch-
                       and-bound/ACO search, OpenRouteService client
+Dockerfile           container build
+docker-compose.yml   local run via Docker
 ```
