@@ -16,18 +16,18 @@ const (
 
 // Service is a client for the OpenRouteService directions API.
 type Service struct {
-	RequestURL string
-	APIKey     string
-	Client     *http.Client
+	requestURL string
+	apiKey     string
+	client     *http.Client
 }
 
 // NewService builds a Service that sends requests to requestURL,
 // authenticated with apiKey.
 func NewService(requestURL, apiKey string) *Service {
 	return &Service{
-		RequestURL: requestURL,
-		APIKey:     apiKey,
-		Client:     &http.Client{},
+		requestURL: requestURL,
+		apiKey:     apiKey,
+		client:     &http.Client{},
 	}
 }
 
@@ -58,7 +58,7 @@ func (s *Service) GetRoute(
 
 	req, err := http.NewRequest(
 		http.MethodPost,
-		s.RequestURL,
+		s.requestURL,
 		bytes.NewBuffer(body),
 	)
 	if err != nil {
@@ -66,9 +66,9 @@ func (s *Service) GetRoute(
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", s.APIKey)
+	req.Header.Set("Authorization", s.apiKey)
 
-	resp, err := s.Client.Do(req)
+	resp, err := s.client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("send route request: %w", err)
 	}

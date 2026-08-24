@@ -4,8 +4,9 @@ EV routing algorithms — an HTTP service that finds the cheapest route for an
 electric vehicle between two points, routing through charging stations along
 the way when the vehicle's battery can't make the trip on a single charge.
 
-Two search strategies are exposed over the same cost model: Dijkstra and a
-genetic algorithm.
+Five search strategies are exposed over the same cost model: Dijkstra, a
+genetic algorithm, Variable Neighborhood Search, Branch and Bound, and Ant
+Colony Optimization.
 
 ## How it works
 
@@ -20,7 +21,8 @@ stations, the service:
    destination is a charging stop, the cost of the cheapest usable slot
    there (tariff × energy, plus a wait-time cost).
 3. Searches that graph for the minimum-cost path from start to finish,
-   using either Dijkstra's algorithm or a genetic algorithm.
+   using Dijkstra's algorithm, a genetic algorithm, Variable Neighborhood
+   Search, Branch and Bound, or Ant Colony Optimization.
 
 The vehicle's energy consumption is temperature-dependent: it's derived from
 the vehicle's passport consumption (`spendOpt`, kWh/100km at 25°C — `E0` in
@@ -62,12 +64,18 @@ The server listens on `:8080`.
 
 ## API
 
-Both endpoints accept the same request body and return the same response
+All endpoints accept the same request body and return the same response
 shape; they differ only in which search strategy is used.
 
 ### `POST /route/genetic`
 
 ### `POST /route/dijkstra`
+
+### `POST /route/vns`
+
+### `POST /route/branch-and-bound`
+
+### `POST /route/aco`
 
 **Request body:**
 
@@ -178,6 +186,6 @@ cmd/server          entry point
 config/              config loading and config.yaml
 internal/dto/        request/response types
 internal/controller/ HTTP handlers
-internal/service/    cost model, routing graph, Dijkstra/genetic search,
-                      OpenRouteService client
+internal/service/    cost model, routing graph, Dijkstra/genetic/VNS/branch-
+                      and-bound/ACO search, OpenRouteService client
 ```

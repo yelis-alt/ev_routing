@@ -26,8 +26,7 @@ type CoordsDTO struct {
 	Latitude  float64 `json:"latitude"`
 }
 
-// RouteRequestDTO is the request body for POST /route/genetic and
-// POST /route/dijkstra.
+// RouteRequestDTO is the request body for every POST /route/* endpoint.
 type RouteRequestDTO struct {
 	StartCoords      CoordsDTO    `json:"startCoords"`      // S
 	FinishCoords     CoordsDTO    `json:"finishCoords"`     // D

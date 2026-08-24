@@ -3,6 +3,7 @@ package service
 import (
 	"log"
 	"math"
+	"time"
 
 	"ev_routing/internal/dto"
 )
@@ -22,6 +23,9 @@ func (s *DijkstraRouteService) GetRouteWithDijkstra(
 	adjacencyMatrix map[int]map[int]dto.Edge,
 	routeRequest *dto.RouteRequestDTO,
 ) []dto.RouteNodeDTO {
+	start := time.Now()
+	defer func() { log.Printf("Dijkstra duration: %v", time.Since(start)) }()
+
 	routeMap := make(map[int]float64, len(adjacencyMatrix))
 	connectMap := make(map[int]*int, len(adjacencyMatrix))
 	queue := make([]int, 0, len(adjacencyMatrix))

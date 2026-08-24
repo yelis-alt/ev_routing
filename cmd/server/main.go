@@ -22,8 +22,18 @@ func main() {
 	routingService := service.NewRoutingService(orsService)
 	geneticRouteService := service.NewGeneticRouteService()
 	dijkstraRouteService := service.NewDijkstraRouteService()
+	vnsRouteService := service.NewVNSRouteService()
+	branchAndBoundRouteService := service.NewBranchAndBoundRouteService()
+	acoRouteService := service.NewACORouteService()
 
-	routeController := controller.NewRouteController(routingService, geneticRouteService, dijkstraRouteService)
+	routeController := controller.NewRouteController(
+		routingService,
+		geneticRouteService,
+		dijkstraRouteService,
+		vnsRouteService,
+		branchAndBoundRouteService,
+		acoRouteService,
+	)
 
 	mux := http.NewServeMux()
 	routeController.RegisterRoutes(mux)

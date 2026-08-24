@@ -16,12 +16,12 @@ const (
 // RoutingService builds the routing graph over V = {S,D} ∪ C_k, using
 // OpenRouteService for each edge's distance/duration.
 type RoutingService struct {
-	ORS *Service
+	ors *Service
 }
 
 // NewRoutingService builds a RoutingService that computes edges via ors.
 func NewRoutingService(ors *Service) *RoutingService {
-	return &RoutingService{ORS: ors}
+	return &RoutingService{ors: ors}
 }
 
 // GetAdjacencyMatrix builds V's edges (see buildDirectedEdge); a missing
@@ -41,7 +41,7 @@ func (rs *RoutingService) GetAdjacencyMatrix(routeRequest *dto.RouteRequestDTO) 
 			from := stations[i]
 			to := stations[j]
 
-			route, err := rs.ORS.GetRoute(
+			route, err := rs.ors.GetRoute(
 				from.Coords.Latitude,
 				from.Coords.Longitude,
 				to.Coords.Latitude,

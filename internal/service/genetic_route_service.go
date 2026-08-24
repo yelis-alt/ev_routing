@@ -5,6 +5,7 @@ import (
 	"math"
 	"math/rand"
 	"sort"
+	"time"
 
 	"ev_routing/internal/dto"
 )
@@ -30,6 +31,9 @@ func (s *GeneticRouteService) GetRouteWithEvolution(
 	adjacencyMatrix map[int]map[int]dto.Edge,
 	routeRequest *dto.RouteRequestDTO,
 ) []dto.RouteNodeDTO {
+	start := time.Now()
+	defer func() { log.Printf("Genetic duration: %v", time.Since(start)) }()
+
 	nodeIds := make(map[int]struct{})
 	for nodeId, neighbors := range adjacencyMatrix {
 		nodeIds[nodeId] = struct{}{}
@@ -72,15 +76,15 @@ func (s *GeneticRouteService) GetRouteWithEvolution(
 		var child dto.GenerationDTO
 		switch rand.Intn(4) {
 		case 0:
-			child = s.GetMutation(parent, geneIds)
+			child = s.getMutation(parent, geneIds)
 		case 1:
-			child = s.GetCrossover(parent, geneIds)
+			child = s.getCrossover(parent, geneIds)
 		case 2:
-			child = s.GetMutation(parent, geneIds)
-			child = s.GetCrossover(child, geneIds)
+			child = s.getMutation(parent, geneIds)
+			child = s.getCrossover(child, geneIds)
 		case 3:
-			child = s.GetCrossover(parent, geneIds)
-			child = s.GetMutation(child, geneIds)
+			child = s.getCrossover(parent, geneIds)
+			child = s.getMutation(child, geneIds)
 		}
 
 		pathIds := make([]int, 0)
@@ -129,8 +133,8 @@ func (s *GeneticRouteService) GetRouteWithEvolution(
 	return getRouteNodesFromIds(adjacencyMatrix, bestPathIds, routeRequest)
 }
 
-// GetMutation flips a single, randomly-chosen non-endpoint gene.
-func (s *GeneticRouteService) GetMutation(generation dto.GenerationDTO, geneIds []int) dto.GenerationDTO {
+// getMutation flips a single, randomly-chosen non-endpoint gene.
+func (s *GeneticRouteService) getMutation(generation dto.GenerationDTO, geneIds []int) dto.GenerationDTO {
 	randomGeneIndex := rand.Intn(len(geneIds)-2) + 1
 	mutatedGeneId := geneIds[randomGeneIndex]
 	generation.Dna[mutatedGeneId] = 1 - generation.Dna[mutatedGeneId]
@@ -138,12 +142,12 @@ func (s *GeneticRouteService) GetMutation(generation dto.GenerationDTO, geneIds 
 	return generation
 }
 
-// GetCrossover combines two prior generations' genes; falls back to a
+// getCrossover combines two prior generations' genes; falls back to a
 // mutation until at least minParentsForCrossover prior generations exist.
-func (s *GeneticRouteService) GetCrossover(generation dto.GenerationDTO, geneIds []int) dto.GenerationDTO {
+func (s *GeneticRouteService) getCrossover(generation dto.GenerationDTO, geneIds []int) dto.GenerationDTO {
 	parentDnas := generation.Parents
 	if len(parentDnas) < minParentsForCrossover {
-		mutant := s.GetMutation(generation, geneIds)
+		mutant := s.getMutation(generation, geneIds)
 		mutant.Parents = append(mutant.Parents, mutant.Dna)
 
 		return mutant

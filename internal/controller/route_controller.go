@@ -8,12 +8,14 @@ import (
 	"ev_routing/internal/service"
 )
 
-// RouteController exposes HTTP endpoints for the genetic and Dijkstra
-// cheapest-path search approaches.
+// RouteController exposes an HTTP endpoint per route-search strategy.
 type RouteController struct {
-	Routing  *service.RoutingService
-	Genetic  *service.GeneticRouteService
-	Dijkstra *service.DijkstraRouteService
+	routing        *service.RoutingService
+	genetic        *service.GeneticRouteService
+	dijkstra       *service.DijkstraRouteService
+	vns            *service.VNSRouteService
+	branchAndBound *service.BranchAndBoundRouteService
+	aco            *service.ACORouteService
 }
 
 // NewRouteController builds a RouteController backed by the given services.
@@ -21,11 +23,17 @@ func NewRouteController(
 	routing *service.RoutingService,
 	genetic *service.GeneticRouteService,
 	dijkstra *service.DijkstraRouteService,
+	vns *service.VNSRouteService,
+	branchAndBound *service.BranchAndBoundRouteService,
+	aco *service.ACORouteService,
 ) *RouteController {
 	return &RouteController{
-		Routing:  routing,
-		Genetic:  genetic,
-		Dijkstra: dijkstra,
+		routing:        routing,
+		genetic:        genetic,
+		dijkstra:       dijkstra,
+		vns:            vns,
+		branchAndBound: branchAndBound,
+		aco:            aco,
 	}
 }
 
@@ -33,6 +41,9 @@ func NewRouteController(
 func (rc *RouteController) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /route/genetic", rc.handleGenetic)
 	mux.HandleFunc("POST /route/dijkstra", rc.handleDijkstra)
+	mux.HandleFunc("POST /route/vns", rc.handleVNS)
+	mux.HandleFunc("POST /route/branch-and-bound", rc.handleBranchAndBound)
+	mux.HandleFunc("POST /route/aco", rc.handleACO)
 }
 
 // handleGenetic finds the cheapest route using GeneticRouteService.
@@ -42,7 +53,7 @@ func (rc *RouteController) handleGenetic(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	routeNodes := rc.Genetic.GetRouteWithEvolution(adjacencyMatrix, routeRequest)
+	routeNodes := rc.genetic.GetRouteWithEvolution(adjacencyMatrix, routeRequest)
 	writeJSON(w, http.StatusOK, routeNodes)
 }
 
@@ -53,7 +64,40 @@ func (rc *RouteController) handleDijkstra(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	routeNodes := rc.Dijkstra.GetRouteWithDijkstra(adjacencyMatrix, routeRequest)
+	routeNodes := rc.dijkstra.GetRouteWithDijkstra(adjacencyMatrix, routeRequest)
+	writeJSON(w, http.StatusOK, routeNodes)
+}
+
+// handleVNS finds the cheapest route using VNSRouteService.
+func (rc *RouteController) handleVNS(w http.ResponseWriter, r *http.Request) {
+	routeRequest, adjacencyMatrix, ok := rc.decodeAndBuildMatrix(w, r)
+	if !ok {
+		return
+	}
+
+	routeNodes := rc.vns.GetRouteWithVNS(adjacencyMatrix, routeRequest)
+	writeJSON(w, http.StatusOK, routeNodes)
+}
+
+// handleBranchAndBound finds the cheapest route using BranchAndBoundRouteService.
+func (rc *RouteController) handleBranchAndBound(w http.ResponseWriter, r *http.Request) {
+	routeRequest, adjacencyMatrix, ok := rc.decodeAndBuildMatrix(w, r)
+	if !ok {
+		return
+	}
+
+	routeNodes := rc.branchAndBound.GetRouteWithBranchAndBound(adjacencyMatrix, routeRequest)
+	writeJSON(w, http.StatusOK, routeNodes)
+}
+
+// handleACO finds the cheapest route using ACORouteService.
+func (rc *RouteController) handleACO(w http.ResponseWriter, r *http.Request) {
+	routeRequest, adjacencyMatrix, ok := rc.decodeAndBuildMatrix(w, r)
+	if !ok {
+		return
+	}
+
+	routeNodes := rc.aco.GetRouteWithACO(adjacencyMatrix, routeRequest)
 	writeJSON(w, http.StatusOK, routeNodes)
 }
 
@@ -69,7 +113,7 @@ func (rc *RouteController) decodeAndBuildMatrix(
 		return nil, nil, false
 	}
 
-	adjacencyMatrix, err := rc.Routing.GetAdjacencyMatrix(&routeRequest)
+	adjacencyMatrix, err := rc.routing.GetAdjacencyMatrix(&routeRequest)
 	if err != nil {
 		http.Error(w, "failed to build adjacency matrix: "+err.Error(), http.StatusBadGateway)
 		return nil, nil, false
