@@ -66,18 +66,26 @@ func (s *ACORouteService) GetRouteWithACO(
 	bestCost := math.MaxFloat64
 
 	for iteration := range acoIterations {
-		results := make([]acoAntResult, 0, acoAntCount)
-
-		for range acoAntCount {
+		// Ants only read pheromone this round (it's only mutated below,
+		// after every ant has finished), so they can walk concurrently.
+		antResults := make([]*acoAntResult, acoAntCount)
+		parallelFor(acoAntCount, func(i int) {
 			pathIds, cost, reached := walkAnt(adjacencyMatrix, pheromone, maxSteps)
-			if !reached {
+			if reached {
+				antResults[i] = &acoAntResult{pathIds: pathIds, cost: cost}
+			}
+		})
+
+		results := make([]acoAntResult, 0, acoAntCount)
+		for _, result := range antResults {
+			if result == nil {
 				continue
 			}
 
-			results = append(results, acoAntResult{pathIds: pathIds, cost: cost})
-			if cost < bestCost {
-				bestCost = cost
-				bestPath = pathIds
+			results = append(results, *result)
+			if result.cost < bestCost {
+				bestCost = result.cost
+				bestPath = result.pathIds
 			}
 		}
 

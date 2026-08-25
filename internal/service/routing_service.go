@@ -3,6 +3,7 @@ package service
 import (
 	"fmt"
 	"math"
+	"sync"
 	"time"
 
 	"ev_routing/internal/dto"
@@ -11,6 +12,11 @@ import (
 const (
 	startStationId  = math.MinInt32
 	finishStationId = math.MaxInt32
+
+	// adjacencyMatrixConcurrency bounds concurrent OpenRouteService calls
+	// while building the adjacency matrix; higher than parallelWorkers()
+	// since these are network-bound, not CPU-bound.
+	adjacencyMatrixConcurrency = 16
 )
 
 // RoutingService builds the routing graph over V = {S,D} ∪ C_k, using
@@ -24,8 +30,16 @@ func NewRoutingService(ors *Service) *RoutingService {
 	return &RoutingService{ors: ors}
 }
 
+// stationPair is one (i,j) index pair into an ordered station list, with i<j.
+type stationPair struct {
+	i, j int
+}
+
 // GetAdjacencyMatrix builds V's edges (see buildDirectedEdge); a missing
-// edge means that direction is forbidden or infeasible.
+// edge means that direction is forbidden or infeasible. Each pair's
+// OpenRouteService lookup is independent, so they run concurrently, bounded
+// by adjacencyMatrixConcurrency; the matrix itself is only ever written by
+// the calling goroutine, after all lookups complete.
 func (rs *RoutingService) GetAdjacencyMatrix(routeRequest *dto.RouteRequestDTO) (map[int]map[int]dto.Edge, error) {
 	stations := buildOrderedStationList(routeRequest)
 	candidateStations := stations[1 : len(stations)-1]
@@ -36,38 +50,68 @@ func (rs *RoutingService) GetAdjacencyMatrix(routeRequest *dto.RouteRequestDTO) 
 		adjacencyMatrix[station.Id] = make(map[int]dto.Edge)
 	}
 
+	pairs := make([]stationPair, 0, len(stations)*(len(stations)-1)/2)
 	for i := range stations {
 		for j := i + 1; j < len(stations); j++ {
-			from := stations[i]
-			to := stations[j]
+			pairs = append(pairs, stationPair{i, j})
+		}
+	}
 
-			route, err := rs.ors.GetRoute(
+	routes := make([]*dto.RouteResult, len(pairs))
+	errs := make([]error, len(pairs))
+
+	sem := make(chan struct{}, adjacencyMatrixConcurrency)
+	var wg sync.WaitGroup
+	for idx, pair := range pairs {
+		wg.Add(1)
+		sem <- struct{}{}
+		go func(idx int, pair stationPair) {
+			defer wg.Done()
+			defer func() { <-sem }()
+
+			from := stations[pair.i]
+			to := stations[pair.j]
+
+			routes[idx], errs[idx] = rs.ors.GetRoute(
 				from.Coords.Latitude,
 				from.Coords.Longitude,
 				to.Coords.Latitude,
 				to.Coords.Longitude,
 			)
-			if err != nil {
-				return nil, fmt.Errorf(
-					"get route between station %d and %d: %w",
-					from.Id, to.Id, err,
-				)
-			}
+		}(idx, pair)
+	}
+	wg.Wait()
 
-			tripDuration := hoursToDuration(route.TripDuration)
-			nearTariff := nearestStationTariff(candidateStations, from.Coords, to.Coords)
+	for idx, pair := range pairs {
+		if errs[idx] != nil {
+			from := stations[pair.i]
+			to := stations[pair.j]
 
-			var avgSpeedKmH float64
-			if route.TripDuration > 0 {
-				avgSpeedKmH = route.Distance / route.TripDuration
-			}
+			return nil, fmt.Errorf(
+				"get route between station %d and %d: %w",
+				from.Id, to.Id, errs[idx],
+			)
+		}
+	}
 
-			if edge, ok := buildDirectedEdge(from, to, route.Distance, tripDuration, avgSpeedKmH, consumption, nearTariff, routeRequest); ok {
-				adjacencyMatrix[from.Id][to.Id] = edge
-			}
-			if edge, ok := buildDirectedEdge(to, from, route.Distance, tripDuration, avgSpeedKmH, consumption, nearTariff, routeRequest); ok {
-				adjacencyMatrix[to.Id][from.Id] = edge
-			}
+	for idx, pair := range pairs {
+		from := stations[pair.i]
+		to := stations[pair.j]
+		route := routes[idx]
+
+		tripDuration := hoursToDuration(route.TripDuration)
+		nearTariff := nearestStationTariff(candidateStations, from.Coords, to.Coords)
+
+		var avgSpeedKmH float64
+		if route.TripDuration > 0 {
+			avgSpeedKmH = route.Distance / route.TripDuration
+		}
+
+		if edge, ok := buildDirectedEdge(from, to, route.Distance, tripDuration, avgSpeedKmH, consumption, nearTariff, routeRequest); ok {
+			adjacencyMatrix[from.Id][to.Id] = edge
+		}
+		if edge, ok := buildDirectedEdge(to, from, route.Distance, tripDuration, avgSpeedKmH, consumption, nearTariff, routeRequest); ok {
+			adjacencyMatrix[to.Id][from.Id] = edge
 		}
 	}
 

@@ -4,6 +4,8 @@ import (
 	"log"
 	"math"
 	"sort"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"ev_routing/internal/dto"
@@ -40,21 +42,38 @@ func (s *BranchAndBoundRouteService) GetRouteWithBranchAndBound(
 
 	bestCost := math.MaxFloat64
 	var bestPath []int
-	expansions := 0
+	var mu sync.Mutex
+	var expansions atomic.Int64
 
-	visited := map[int]bool{startStationId: true}
-	branchAndBound(
-		adjacencyMatrix,
-		startStationId,
-		visited,
-		[]int{startStationId},
-		0,
-		&bestCost,
-		&bestPath,
-		&expansions,
-	)
+	rootVisited := map[int]bool{startStationId: true}
+	rootCandidates := candidatesFrom(adjacencyMatrix, startStationId, rootVisited)
 
-	log.Printf("Branch and bound explored %d nodes; best cost: %v", expansions, bestCost)
+	// Each root candidate starts its own DFS branch with an independent
+	// visited/path, so branches run concurrently; only the shared best and
+	// expansion counter need synchronization.
+	parallelFor(len(rootCandidates), func(idx int) {
+		candidate := rootCandidates[idx]
+
+		visited := make(map[int]bool, len(rootVisited)+1)
+		for id, v := range rootVisited {
+			visited[id] = v
+		}
+		visited[candidate.id] = true
+
+		branchAndBound(
+			adjacencyMatrix,
+			candidate.id,
+			visited,
+			[]int{startStationId, candidate.id},
+			candidate.edge.Cost,
+			&mu,
+			&bestCost,
+			&bestPath,
+			&expansions,
+		)
+	})
+
+	log.Printf("Branch and bound explored %d nodes; best cost: %v", expansions.Load(), bestCost)
 
 	if bestPath == nil {
 		return []dto.RouteNodeDTO{}
@@ -65,32 +84,68 @@ func (s *BranchAndBoundRouteService) GetRouteWithBranchAndBound(
 
 // branchAndBound extends path from currentId, updates best on a cheaper
 // finish, and prunes branches whose cost so far is already >= *bestCost.
+// bestCost/bestPath are shared across concurrently running root branches,
+// so every access to them goes through mu; expansions is a plain atomic
+// counter, allowed to briefly overshoot bnbMaxExpansions under
+// concurrency since it's only a soft exploration cap.
 func branchAndBound(
 	adjacencyMatrix map[int]map[int]dto.Edge,
 	currentId int,
 	visited map[int]bool,
 	path []int,
 	costSoFar float64,
+	mu *sync.Mutex,
 	bestCost *float64,
 	bestPath *[]int,
-	expansions *int,
+	expansions *atomic.Int64,
 ) {
-	if *expansions >= bnbMaxExpansions {
+	if expansions.Add(1) > bnbMaxExpansions {
 		return
 	}
-	*expansions++
 
-	if costSoFar >= *bestCost {
+	mu.Lock()
+	prune := costSoFar >= *bestCost
+	mu.Unlock()
+	if prune {
 		return
 	}
 
 	if currentId == finishStationId {
-		*bestCost = costSoFar
-		*bestPath = append([]int(nil), path...)
+		mu.Lock()
+		if costSoFar < *bestCost {
+			*bestCost = costSoFar
+			*bestPath = append([]int(nil), path...)
+		}
+		mu.Unlock()
 
 		return
 	}
 
+	candidates := candidatesFrom(adjacencyMatrix, currentId, visited)
+
+	for _, candidate := range candidates {
+		visited[candidate.id] = true
+		branchAndBound(
+			adjacencyMatrix,
+			candidate.id,
+			visited,
+			append(path, candidate.id),
+			costSoFar+candidate.edge.Cost,
+			mu,
+			bestCost,
+			bestPath,
+			expansions,
+		)
+		visited[candidate.id] = false
+	}
+}
+
+// candidatesFrom lists currentId's unvisited neighbors, cheapest-edge-first.
+func candidatesFrom(
+	adjacencyMatrix map[int]map[int]dto.Edge,
+	currentId int,
+	visited map[int]bool,
+) []branchAndBoundCandidate {
 	candidates := make([]branchAndBoundCandidate, 0, len(adjacencyMatrix[currentId]))
 	for nextId, edge := range adjacencyMatrix[currentId] {
 		if !visited[nextId] {
@@ -101,18 +156,5 @@ func branchAndBound(
 		return candidates[i].edge.Cost < candidates[j].edge.Cost
 	})
 
-	for _, candidate := range candidates {
-		visited[candidate.id] = true
-		branchAndBound(
-			adjacencyMatrix,
-			candidate.id,
-			visited,
-			append(path, candidate.id),
-			costSoFar+candidate.edge.Cost,
-			bestCost,
-			bestPath,
-			expansions,
-		)
-		visited[candidate.id] = false
-	}
+	return candidates
 }

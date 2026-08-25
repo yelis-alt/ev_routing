@@ -42,23 +42,58 @@ func (s *GeneticRouteService) GetRouteWithEvolution(
 		}
 	}
 
+	geneIds := make([]int, 0, len(nodeIds))
+	for id := range nodeIds {
+		geneIds = append(geneIds, id)
+	}
+	sort.Ints(geneIds)
+
+	// Each island runs the hill-climb independently (its own parent/child
+	// lineage, unshared across goroutines), so they run in parallel; the
+	// cheapest path across all islands wins.
+	islands := parallelWorkers()
+	islandPathIds := make([][]int, islands)
+	islandCosts := make([]float64, islands)
+
+	parallelFor(islands, func(i int) {
+		islandPathIds[i], islandCosts[i] = s.runIsland(i, adjacencyMatrix, geneIds)
+	})
+
+	bestIsland := -1
+	minCost := math.MaxFloat64
+	for i, cost := range islandCosts {
+		if islandPathIds[i] != nil && cost < minCost {
+			minCost = cost
+			bestIsland = i
+		}
+	}
+
+	if bestIsland == -1 {
+		return []dto.RouteNodeDTO{}
+	}
+
+	return getRouteNodesFromIds(adjacencyMatrix, islandPathIds[bestIsland], routeRequest)
+}
+
+// runIsland runs one independent instance of the mutation/crossover
+// hill-climb described on GetRouteWithEvolution, returning the cheapest
+// valid path it found (nil, +Inf if it never found one).
+func (s *GeneticRouteService) runIsland(
+	island int,
+	adjacencyMatrix map[int]map[int]dto.Edge,
+	geneIds []int,
+) ([]int, float64) {
 	parent := dto.GenerationDTO{
-		Dna:     make(map[int]int, len(nodeIds)),
+		Dna:     make(map[int]int, len(geneIds)),
 		Parents: make([]map[int]int, 0),
 	}
-	for id := range nodeIds {
+	for _, id := range geneIds {
 		if id == startStationId || id == finishStationId {
 			parent.Dna[id] = 1
 		} else {
 			parent.Dna[id] = 0
 		}
 	}
-
-	geneIds := make([]int, 0, len(parent.Dna))
-	for id := range parent.Dna {
-		geneIds = append(geneIds, id)
-	}
-	sort.Ints(geneIds)
 
 	rep := 0
 	success := 0
@@ -67,10 +102,10 @@ func (s *GeneticRouteService) GetRouteWithEvolution(
 
 	for success < genSuccessRep {
 		rep++
-		log.Printf("Generation %d out of %d; Successful DNAs: %d", rep, genRep, success)
+		log.Printf("Island %d: generation %d out of %d; Successful DNAs: %d", island, rep, genRep, success)
 
 		if rep > genRep && success == 0 {
-			return []dto.RouteNodeDTO{}
+			return nil, math.MaxFloat64
 		}
 
 		var child dto.GenerationDTO
@@ -128,9 +163,9 @@ func (s *GeneticRouteService) GetRouteWithEvolution(
 		parent = child
 	}
 
-	log.Printf("Generation %d out of %d; Successful DNAs: %d", rep, genRep, success)
+	log.Printf("Island %d: generation %d out of %d; Successful DNAs: %d", island, rep, genRep, success)
 
-	return getRouteNodesFromIds(adjacencyMatrix, bestPathIds, routeRequest)
+	return bestPathIds, minCost
 }
 
 // getMutation flips a single, randomly-chosen non-endpoint gene.

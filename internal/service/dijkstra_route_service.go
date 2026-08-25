@@ -3,10 +3,16 @@ package service
 import (
 	"log"
 	"math"
+	"sync"
 	"time"
 
 	"ev_routing/internal/dto"
 )
+
+// dijkstraParallelThreshold is the queue size above which the per-round
+// minimum scan is worth splitting across goroutines; below it, the
+// goroutine-spawn overhead outweighs the win.
+const dijkstraParallelThreshold = 64
 
 // DijkstraRouteService searches an adjacency matrix (from
 // RoutingService.GetAdjacencyMatrix) for the cheapest path via Dijkstra.
@@ -43,13 +49,7 @@ func (s *DijkstraRouteService) GetRouteWithDijkstra(
 	for len(queue) > 0 {
 		log.Printf("Nodes left: %d", len(queue))
 
-		minPos := 0
-		for pos := 1; pos < len(queue); pos++ {
-			if routeMap[queue[pos]] < routeMap[queue[minPos]] {
-				minPos = pos
-			}
-		}
-
+		minPos := findMinPos(queue, routeMap)
 		currentNodeId := queue[minPos]
 		queue = append(queue[:minPos], queue[minPos+1:]...)
 
@@ -74,6 +74,66 @@ func (s *DijkstraRouteService) GetRouteWithDijkstra(
 	reverseInts(pathIds)
 
 	return getRouteNodesFromIds(adjacencyMatrix, pathIds, routeRequest)
+}
+
+// findMinPos returns the index in queue whose routeMap value is smallest,
+// preferring the first occurrence on ties (matching a plain left-to-right
+// scan). Above dijkstraParallelThreshold, the scan is split into chunks
+// evaluated concurrently and combined in order, which preserves that same
+// tie-break.
+func findMinPos(queue []int, routeMap map[int]float64) int {
+	n := len(queue)
+	if n < dijkstraParallelThreshold {
+		return scanMinPos(queue, routeMap, 0, n)
+	}
+
+	workers := parallelWorkers()
+	if workers > n {
+		workers = n
+	}
+	chunkSize := (n + workers - 1) / workers
+
+	localMins := make([]int, workers)
+	var wg sync.WaitGroup
+	for w := 0; w < workers; w++ {
+		lo := w * chunkSize
+		hi := min(lo+chunkSize, n)
+		if lo >= hi {
+			localMins[w] = -1
+			continue
+		}
+
+		wg.Add(1)
+		go func(w, lo, hi int) {
+			defer wg.Done()
+			localMins[w] = scanMinPos(queue, routeMap, lo, hi)
+		}(w, lo, hi)
+	}
+	wg.Wait()
+
+	minPos := -1
+	for _, pos := range localMins {
+		if pos == -1 {
+			continue
+		}
+		if minPos == -1 || routeMap[queue[pos]] < routeMap[queue[minPos]] {
+			minPos = pos
+		}
+	}
+
+	return minPos
+}
+
+// scanMinPos is a plain left-to-right minimum scan over queue[lo:hi].
+func scanMinPos(queue []int, routeMap map[int]float64, lo, hi int) int {
+	minPos := lo
+	for pos := lo + 1; pos < hi; pos++ {
+		if routeMap[queue[pos]] < routeMap[queue[minPos]] {
+			minPos = pos
+		}
+	}
+
+	return minPos
 }
 
 // reverseInts reverses ids in place.
