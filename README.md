@@ -47,7 +47,7 @@ in `internal/service/cost_model.go`.
 ```yaml
 openrouteservice:
   request:
-    url: https://api.openrouteservice.org/v2/directions/driving-car
+    url: https://api.heigit.org/openrouteservice/v2/directions/driving-car
 ```
 
 The API key itself is read from the `OPENROUTESERVICE_API_KEY` environment

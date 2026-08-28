@@ -12,6 +12,13 @@ type Config struct {
 			URL string `yaml:"url"`
 		} `yaml:"request"`
 	} `yaml:"openrouteservice"`
+	Database struct {
+		Host    string `yaml:"host"`
+		Port    int    `yaml:"port"`
+		User    string `yaml:"user"`
+		Name    string `yaml:"name"`
+		SSLMode string `yaml:"sslmode"`
+	} `yaml:"database"`
 }
 
 func Load(path string) (*Config, error) {

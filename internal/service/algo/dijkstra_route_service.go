@@ -1,4 +1,4 @@
-package service
+package algo
 
 import (
 	"log"
@@ -72,6 +72,11 @@ func (s *DijkstraRouteService) GetRouteWithDijkstra(
 		pathIds = append(pathIds, *predecessor)
 	}
 	reverseInts(pathIds)
+
+	// Backtrack always seeds finish; unreachable means it never traces back to start.
+	if len(pathIds) == 0 || pathIds[0] != startStationId {
+		return []dto.RouteNodeDTO{}
+	}
 
 	return getRouteNodesFromIds(adjacencyMatrix, pathIds, routeRequest)
 }

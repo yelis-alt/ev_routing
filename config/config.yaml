@@ -1,4 +1,10 @@
 openrouteservice:
   request:
-    url: https://api.openrouteservice.org/v2/directions/driving-car
+    url: https://api.heigit.org/openrouteservice/v2/directions/driving-car
   api: ${OPENROUTESERVICE_API_KEY}
+database:
+  host: postgres
+  port: 5432
+  user: ev_routing
+  name: ev_routing
+  sslmode: disable
