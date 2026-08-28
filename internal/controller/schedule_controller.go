@@ -5,17 +5,17 @@ import (
 	"net/http"
 
 	"ev_routing/internal/dto"
-	"ev_routing/internal/service"
+	"ev_routing/internal/service/schedule"
 )
 
 // ScheduleController exposes HTTP endpoints for charging-station booking
 // time windows.
 type ScheduleController struct {
-	schedule *service.ScheduleService
+	schedule *schedule.ScheduleService
 }
 
 // NewScheduleController builds a ScheduleController backed by schedule.
-func NewScheduleController(schedule *service.ScheduleService) *ScheduleController {
+func NewScheduleController(schedule *schedule.ScheduleService) *ScheduleController {
 	return &ScheduleController{schedule: schedule}
 }
 

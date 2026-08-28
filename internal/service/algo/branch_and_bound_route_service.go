@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"ev_routing/internal/dto"
+	"ev_routing/internal/service/additional"
+	"ev_routing/internal/service/geo"
 )
 
 // bnbMaxExpansions caps the number of partial paths explored, guarding
@@ -45,13 +47,13 @@ func (s *BranchAndBoundRouteService) GetRouteWithBranchAndBound(
 	var mu sync.Mutex
 	var expansions atomic.Int64
 
-	rootVisited := map[int]bool{startStationId: true}
-	rootCandidates := candidatesFrom(adjacencyMatrix, startStationId, rootVisited)
+	rootVisited := map[int]bool{additional.StartStationId: true}
+	rootCandidates := candidatesFrom(adjacencyMatrix, additional.StartStationId, rootVisited)
 
 	// Each root candidate starts its own DFS branch with an independent
 	// visited/path, so branches run concurrently; only the shared best and
 	// expansion counter need synchronization.
-	parallelFor(len(rootCandidates), func(idx int) {
+	additional.ParallelFor(len(rootCandidates), func(idx int) {
 		candidate := rootCandidates[idx]
 
 		visited := make(map[int]bool, len(rootVisited)+1)
@@ -64,7 +66,7 @@ func (s *BranchAndBoundRouteService) GetRouteWithBranchAndBound(
 			adjacencyMatrix,
 			candidate.id,
 			visited,
-			[]int{startStationId, candidate.id},
+			[]int{additional.StartStationId, candidate.id},
 			candidate.edge.Cost,
 			&mu,
 			&bestCost,
@@ -79,7 +81,7 @@ func (s *BranchAndBoundRouteService) GetRouteWithBranchAndBound(
 		return []dto.RouteNodeDTO{}
 	}
 
-	return getRouteNodesFromIds(adjacencyMatrix, bestPath, routeRequest)
+	return geo.GetRouteNodesFromIds(adjacencyMatrix, bestPath, routeRequest)
 }
 
 // branchAndBound extends path from currentId, updates best on a cheaper
@@ -110,7 +112,7 @@ func branchAndBound(
 		return
 	}
 
-	if currentId == finishStationId {
+	if currentId == additional.FinishStationId {
 		mu.Lock()
 		if costSoFar < *bestCost {
 			*bestCost = costSoFar

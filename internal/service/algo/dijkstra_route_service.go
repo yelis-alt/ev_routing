@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"ev_routing/internal/dto"
+	"ev_routing/internal/service/additional"
+	"ev_routing/internal/service/geo"
 )
 
 // dijkstraParallelThreshold is the queue size above which the per-round
@@ -37,7 +39,7 @@ func (s *DijkstraRouteService) GetRouteWithDijkstra(
 	queue := make([]int, 0, len(adjacencyMatrix))
 
 	for nodeId := range adjacencyMatrix {
-		if nodeId == startStationId {
+		if nodeId == additional.StartStationId {
 			routeMap[nodeId] = 0
 		} else {
 			routeMap[nodeId] = math.MaxFloat64
@@ -63,7 +65,7 @@ func (s *DijkstraRouteService) GetRouteWithDijkstra(
 		}
 	}
 
-	pathIds := []int{finishStationId}
+	pathIds := []int{additional.FinishStationId}
 	for {
 		predecessor := connectMap[pathIds[len(pathIds)-1]]
 		if predecessor == nil {
@@ -74,11 +76,11 @@ func (s *DijkstraRouteService) GetRouteWithDijkstra(
 	reverseInts(pathIds)
 
 	// Backtrack always seeds finish; unreachable means it never traces back to start.
-	if len(pathIds) == 0 || pathIds[0] != startStationId {
+	if len(pathIds) == 0 || pathIds[0] != additional.StartStationId {
 		return []dto.RouteNodeDTO{}
 	}
 
-	return getRouteNodesFromIds(adjacencyMatrix, pathIds, routeRequest)
+	return geo.GetRouteNodesFromIds(adjacencyMatrix, pathIds, routeRequest)
 }
 
 // findMinPos returns the index in queue whose routeMap value is smallest,
@@ -92,7 +94,7 @@ func findMinPos(queue []int, routeMap map[int]float64) int {
 		return scanMinPos(queue, routeMap, 0, n)
 	}
 
-	workers := parallelWorkers()
+	workers := additional.ParallelWorkers()
 	if workers > n {
 		workers = n
 	}

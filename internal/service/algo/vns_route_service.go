@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"ev_routing/internal/dto"
+	"ev_routing/internal/service/additional"
+	"ev_routing/internal/service/geo"
 )
 
 const (
@@ -61,7 +63,7 @@ func (s *VNSRouteService) GetRouteWithVNS(
 
 	baseDna := make(map[int]int, len(geneIds))
 	for _, id := range geneIds {
-		if id == startStationId || id == finishStationId {
+		if id == additional.StartStationId || id == additional.FinishStationId {
 			baseDna[id] = 1
 		} else {
 			baseDna[id] = 0
@@ -101,7 +103,7 @@ func (s *VNSRouteService) GetRouteWithVNS(
 		return []dto.RouteNodeDTO{}
 	}
 
-	return getRouteNodesFromIds(adjacencyMatrix, best.pathIds, routeRequest)
+	return geo.GetRouteNodesFromIds(adjacencyMatrix, best.pathIds, routeRequest)
 }
 
 // shakeDna copies dna and flips min(k, len(interior genes)) distinct,
@@ -139,7 +141,7 @@ func localSearchDna(
 		// evaluated concurrently; the best-improvement reduce below stays
 		// sequential (in interiorIds order) to keep tie-breaks deterministic.
 		neighbors := make([]vnsSolution, len(interiorIds))
-		parallelFor(len(interiorIds), func(idx int) {
+		additional.ParallelFor(len(interiorIds), func(idx int) {
 			neighborDna := copyDna(current.dna)
 			geneId := interiorIds[idx]
 			neighborDna[geneId] = 1 - neighborDna[geneId]

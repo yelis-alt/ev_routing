@@ -5,9 +5,9 @@ import (
 	"sync"
 )
 
-// parallelWorkers is the default concurrency for CPU-bound parallel work,
+// ParallelWorkers is the default concurrency for CPU-bound parallel work,
 // sized to the number of logical CPUs available to the process.
-func parallelWorkers() int {
+func ParallelWorkers() int {
 	if n := runtime.GOMAXPROCS(0); n > 0 {
 		return n
 	}
@@ -15,14 +15,14 @@ func parallelWorkers() int {
 	return 1
 }
 
-// parallelFor runs worker(i) for every i in [0,n) across a bounded pool of
-// goroutines (sized by parallelWorkers), blocking until all calls return.
-func parallelFor(n int, worker func(i int)) {
+// ParallelFor runs worker(i) for every i in [0,n) across a bounded pool of
+// goroutines (sized by ParallelWorkers), blocking until all calls return.
+func ParallelFor(n int, worker func(i int)) {
 	if n <= 0 {
 		return
 	}
 
-	workers := min(parallelWorkers(), n)
+	workers := min(ParallelWorkers(), n)
 
 	jobs := make(chan int)
 

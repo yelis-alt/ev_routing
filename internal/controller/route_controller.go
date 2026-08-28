@@ -5,27 +5,28 @@ import (
 	"net/http"
 
 	"ev_routing/internal/dto"
-	"ev_routing/internal/service"
+	"ev_routing/internal/service/algo"
+	"ev_routing/internal/service/geo"
 )
 
 // RouteController exposes an HTTP endpoint per route-search strategy.
 type RouteController struct {
-	routing        *service.RoutingService
-	genetic        *service.GeneticRouteService
-	dijkstra       *service.DijkstraRouteService
-	vns            *service.VNSRouteService
-	branchAndBound *service.BranchAndBoundRouteService
-	aco            *service.ACORouteService
+	routing        *geo.RoutingService
+	genetic        *algo.GeneticRouteService
+	dijkstra       *algo.DijkstraRouteService
+	vns            *algo.VNSRouteService
+	branchAndBound *algo.BranchAndBoundRouteService
+	aco            *algo.ACORouteService
 }
 
 // NewRouteController builds a RouteController backed by the given services.
 func NewRouteController(
-	routing *service.RoutingService,
-	genetic *service.GeneticRouteService,
-	dijkstra *service.DijkstraRouteService,
-	vns *service.VNSRouteService,
-	branchAndBound *service.BranchAndBoundRouteService,
-	aco *service.ACORouteService,
+	routing *geo.RoutingService,
+	genetic *algo.GeneticRouteService,
+	dijkstra *algo.DijkstraRouteService,
+	vns *algo.VNSRouteService,
+	branchAndBound *algo.BranchAndBoundRouteService,
+	aco *algo.ACORouteService,
 ) *RouteController {
 	return &RouteController{
 		routing:        routing,

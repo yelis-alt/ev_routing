@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"ev_routing/internal/dto"
+	"ev_routing/internal/service/additional"
+	"ev_routing/internal/service/geo"
 )
 
 const (
@@ -69,7 +71,7 @@ func (s *ACORouteService) GetRouteWithACO(
 		// Ants only read pheromone this round (it's only mutated below,
 		// after every ant has finished), so they can walk concurrently.
 		antResults := make([]*acoAntResult, acoAntCount)
-		parallelFor(acoAntCount, func(i int) {
+		additional.ParallelFor(acoAntCount, func(i int) {
 			pathIds, cost, reached := walkAnt(adjacencyMatrix, pheromone, maxSteps)
 			if reached {
 				antResults[i] = &acoAntResult{pathIds: pathIds, cost: cost}
@@ -102,7 +104,7 @@ func (s *ACORouteService) GetRouteWithACO(
 		return []dto.RouteNodeDTO{}
 	}
 
-	return getRouteNodesFromIds(adjacencyMatrix, bestPath, routeRequest)
+	return geo.GetRouteNodesFromIds(adjacencyMatrix, bestPath, routeRequest)
 }
 
 // walkAnt builds one path from start, picking each hop by pheromone^alpha *
@@ -112,13 +114,13 @@ func walkAnt(
 	pheromone map[int]map[int]float64,
 	maxSteps int,
 ) ([]int, float64, bool) {
-	visited := map[int]bool{startStationId: true}
-	path := []int{startStationId}
-	currentId := startStationId
+	visited := map[int]bool{additional.StartStationId: true}
+	path := []int{additional.StartStationId}
+	currentId := additional.StartStationId
 	cost := 0.0
 
 	for range maxSteps {
-		if currentId == finishStationId {
+		if currentId == additional.FinishStationId {
 			return path, cost, true
 		}
 

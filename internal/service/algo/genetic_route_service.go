@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"ev_routing/internal/dto"
+	"ev_routing/internal/service/additional"
+	"ev_routing/internal/service/geo"
 )
 
 const (
@@ -51,11 +53,11 @@ func (s *GeneticRouteService) GetRouteWithEvolution(
 	// Each island runs the hill-climb independently (its own parent/child
 	// lineage, unshared across goroutines), so they run in parallel; the
 	// cheapest path across all islands wins.
-	islands := parallelWorkers()
+	islands := additional.ParallelWorkers()
 	islandPathIds := make([][]int, islands)
 	islandCosts := make([]float64, islands)
 
-	parallelFor(islands, func(i int) {
+	additional.ParallelFor(islands, func(i int) {
 		islandPathIds[i], islandCosts[i] = s.runIsland(i, adjacencyMatrix, geneIds)
 	})
 
@@ -72,7 +74,7 @@ func (s *GeneticRouteService) GetRouteWithEvolution(
 		return []dto.RouteNodeDTO{}
 	}
 
-	return getRouteNodesFromIds(adjacencyMatrix, islandPathIds[bestIsland], routeRequest)
+	return geo.GetRouteNodesFromIds(adjacencyMatrix, islandPathIds[bestIsland], routeRequest)
 }
 
 // runIsland runs one independent instance of the mutation/crossover
@@ -88,7 +90,7 @@ func (s *GeneticRouteService) runIsland(
 		Parents: make([]map[int]int, 0),
 	}
 	for _, id := range geneIds {
-		if id == startStationId || id == finishStationId {
+		if id == additional.StartStationId || id == additional.FinishStationId {
 			parent.Dna[id] = 1
 		} else {
 			parent.Dna[id] = 0

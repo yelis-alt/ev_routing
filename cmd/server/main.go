@@ -12,7 +12,9 @@ import (
 	"ev_routing/config"
 	"ev_routing/internal/controller"
 	"ev_routing/internal/repository"
-	"ev_routing/internal/service"
+	"ev_routing/internal/service/algo"
+	"ev_routing/internal/service/geo"
+	"ev_routing/internal/service/schedule"
 )
 
 func main() {
@@ -23,13 +25,13 @@ func main() {
 
 	apiKey := os.Getenv("OPENROUTESERVICE_API_KEY")
 
-	orsService := service.NewService(cfg.OpenRouteService.Request.URL, apiKey)
-	routingService := service.NewRoutingService(orsService)
-	geneticRouteService := service.NewGeneticRouteService()
-	dijkstraRouteService := service.NewDijkstraRouteService()
-	vnsRouteService := service.NewVNSRouteService()
-	branchAndBoundRouteService := service.NewBranchAndBoundRouteService()
-	acoRouteService := service.NewACORouteService()
+	orsService := geo.NewService(cfg.OpenRouteService.Request.URL, apiKey)
+	routingService := geo.NewRoutingService(orsService)
+	geneticRouteService := algo.NewGeneticRouteService()
+	dijkstraRouteService := algo.NewDijkstraRouteService()
+	vnsRouteService := algo.NewVNSRouteService()
+	branchAndBoundRouteService := algo.NewBranchAndBoundRouteService()
+	acoRouteService := algo.NewACORouteService()
 
 	routeController := controller.NewRouteController(
 		routingService,
@@ -51,7 +53,7 @@ func main() {
 	}
 
 	scheduleRepository := repository.NewScheduleRepository(db)
-	scheduleService := service.NewScheduleService(scheduleRepository)
+	scheduleService := schedule.NewScheduleService(scheduleRepository)
 	scheduleController := controller.NewScheduleController(scheduleService)
 
 	mux := http.NewServeMux()

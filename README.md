@@ -8,6 +8,9 @@ Five search strategies are exposed over the same cost model: Dijkstra, a
 genetic algorithm, Variable Neighborhood Search, Branch and Bound, and Ant
 Colony Optimization.
 
+A separate schedule service tracks charging-station booking time windows in
+Postgres, independent of route search.
+
 ## How it works
 
 Given a start point, a finish point, and a pool of candidate charging
@@ -39,20 +42,30 @@ in `internal/service/cost_model.go`.
 - Go 1.26+
 - An [OpenRouteService](https://openrouteservice.org/) API key, used to
   compute driving distance/duration between points.
+- PostgreSQL, used by the schedule service to store booking time windows.
 
 ## Configuration
 
-`config/config.yaml` holds the OpenRouteService request URL:
+`config/config.yaml` holds the OpenRouteService request URL and the database
+connection settings:
 
 ```yaml
 openrouteservice:
   request:
     url: https://api.heigit.org/openrouteservice/v2/directions/driving-car
+database:
+  host: postgres
+  port: 5432
+  user: ev_routing
+  name: ev_routing
+  sslmode: disable
 ```
 
-The API key itself is read from the `OPENROUTESERVICE_API_KEY` environment
-variable (see `.env` for local development — do not commit real keys to
-version control).
+The OpenRouteService API key and the database password are read from the
+`OPENROUTESERVICE_API_KEY` and `DB_PASSWORD` environment variables (see
+`.env` for local development — do not commit real keys to version control).
+The schema in `migrations/` is applied automatically the first time the
+Postgres container starts.
 
 ## Running
 
@@ -61,7 +74,9 @@ go run ./cmd/server
 ```
 
 The server listens on `:8080`. Each search strategy logs its own progress
-and total duration to stdout as it runs.
+and total duration to stdout as it runs. A Postgres instance matching
+`config/config.yaml`'s `database` settings must already be running and
+reachable — the server fails to start otherwise.
 
 ### Docker
 
@@ -69,8 +84,10 @@ and total duration to stdout as it runs.
 docker compose up --build
 ```
 
-Reads `OPENROUTESERVICE_API_KEY` from `.env` (see Configuration above) and
-publishes the server on `:8080`.
+Brings up the server alongside a Postgres container (seeded from
+`migrations/` on first start), reading `OPENROUTESERVICE_API_KEY` and
+`DB_PASSWORD` from `.env` (see Configuration above), and publishes the
+server on `:8080`.
 
 ## API
 
@@ -170,8 +187,8 @@ not globally. A single route can stop to charge at more than one station:
     },
     "distance": 260,
     "cost": 900,
-    "chargeDuration": 1200000000000,
-    "reachDuration": 9600000000000,
+    "chargeDuration": 900000000000,
+    "reachDuration": 13500000000000,
     "slotId": 0
   },
   {
@@ -179,7 +196,7 @@ not globally. A single route can stop to charge at more than one station:
     "distance": 340,
     "cost": 1050,
     "chargeDuration": 0,
-    "reachDuration": 12000000000000,
+    "reachDuration": 18000000000000,
     "slotId": 0
   }
 ]
@@ -189,15 +206,68 @@ The start/finish stops have `slots: []` because they're synthetic vertices
 (not real stations from `filteredStations`), and `slotId: 0` since they're
 never charging stops.
 
+### `POST /schedule/getTimeWindows`
+
+Returns each requested station's booked time windows on a given date.
+
+**Request body:**
+
+```json
+{
+  "date": "28.08.2026",
+  "stationIdsList": [1, 2]
+}
+```
+
+**Response body:** one entry per requested station, in the same order,
+each with its booked windows formatted `"dd.MM.yyyy HH:MM-HH:MM"` (empty
+when the station has no bookings that day):
+
+```json
+[
+  { "stationId": 1, "timeWindowsList": ["28.08.2026 09:00-10:30"] },
+  { "stationId": 2, "timeWindowsList": [] }
+]
+```
+
+### `POST /schedule/saveTimeWindows`
+
+Books one or more time windows per station.
+
+**Request body:**
+
+```json
+[
+  {
+    "stationId": 1,
+    "code": "ABC123",
+    "timeWindowsList": ["28.08.2026 09:00-10:30"]
+  }
+]
+```
+
+All windows in the request are saved as a single transaction — either all
+of them are booked, or none are.
+
+**Response body:**
+
+```json
+{ "status": 200 }
+```
+
 ## Project layout
 
 ```
-cmd/server           entry point
-config/              config loading and config.yaml
-internal/dto/        request/response types
-internal/controller/ HTTP handlers
-internal/service/    cost model, routing graph, Dijkstra/genetic/VNS/branch-
-                      and-bound/ACO search, OpenRouteService client
-Dockerfile           container build
-docker-compose.yml   local run via Docker
+cmd/server            entry point
+config/                config loading and config.yaml
+internal/dto/          request/response types
+internal/controller/   HTTP handlers
+internal/service/      cost model, routing graph, Dijkstra/genetic/VNS/
+                        branch-and-bound/ACO search, OpenRouteService
+                        client, and the schedule (booking) service
+internal/repository/   database access (Postgres, via database/sql)
+migrations/            SQL schema, applied on the Postgres container's
+                        first start
+Dockerfile             container build
+docker-compose.yml     local run via Docker (server + Postgres)
 ```

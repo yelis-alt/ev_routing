@@ -16,8 +16,8 @@ const (
 	maxCandidateStations = 30
 )
 
-// specificConsumptionKWhPer100Km is E(T).
-func specificConsumptionKWhPer100Km(temperature, e0 float64) float64 {
+// SpecificConsumptionKWhPer100Km is E(T).
+func SpecificConsumptionKWhPer100Km(temperature, e0 float64) float64 {
 	switch {
 	case temperature < 25:
 		return e0 / (1 - 5.1e-5*math.Pow(25-temperature, 2.45))
@@ -35,7 +35,7 @@ func energyForDistanceKWh(distanceKm, consumptionPer100Km float64) float64 {
 
 // candidateCount is k = 30(1 - R_EV/(R_EV+D_remain)).
 func candidateCount(routeRequest *dto.RouteRequestDTO) int {
-	consumption := specificConsumptionKWhPer100Km(routeRequest.Temperature, routeRequest.SpendOpt)
+	consumption := SpecificConsumptionKWhPer100Km(routeRequest.Temperature, routeRequest.SpendOpt)
 	remainingRangeKm := routeRequest.AccLevel / consumption * 100
 	remainingTripKm := haversineDistanceKm(routeRequest.StartCoords, routeRequest.FinishCoords)
 
@@ -47,9 +47,9 @@ func candidateCount(routeRequest *dto.RouteRequestDTO) int {
 	return int(math.Round(k))
 }
 
-// filterCandidateStations is C_k = Top_k(RTree(Buffer(Line(S,D), 5km))).
+// FilterCandidateStations is C_k = Top_k(RTree(Buffer(Line(S,D), 5km))).
 // Top_k = least-detour stations; a linear scan stands in for the R-tree.
-func filterCandidateStations(routeRequest *dto.RouteRequestDTO) []dto.StationDTO {
+func FilterCandidateStations(routeRequest *dto.RouteRequestDTO) []dto.StationDTO {
 	start := routeRequest.StartCoords
 	finish := routeRequest.FinishCoords
 
@@ -88,8 +88,8 @@ func filterCandidateStations(routeRequest *dto.RouteRequestDTO) []dto.StationDTO
 	return candidates
 }
 
-// nearestStationTariff is r_ij^near.
-func nearestStationTariff(candidates []dto.StationDTO, a, b dto.CoordsDTO) float64 {
+// NearestStationTariff is r_ij^near.
+func NearestStationTariff(candidates []dto.StationDTO, a, b dto.CoordsDTO) float64 {
 	if len(candidates) == 0 {
 		return 0
 	}
@@ -146,7 +146,7 @@ func selectBestSlot(
 			slot = s
 			waitCost = sWaitCost
 			chargeCost = sChargeCost
-			chargeDuration = hoursToDuration(chargeAmountKWh / s.Power)
+			chargeDuration = HoursToDuration(chargeAmountKWh / s.Power)
 			ok = true
 		}
 	}
@@ -154,9 +154,9 @@ func selectBestSlot(
 	return slot, waitCost, chargeCost, chargeDuration, ok
 }
 
-// buildDirectedEdge is edge i->j under a "charge to full" policy: prices
+// BuildDirectedEdge is edge i->j under a "charge to full" policy: prices
 // Z_s+Z_w+Z_ch, enforcing x_ij=0 and C_i >= E(T)/100*S_ij; ok=false omits it.
-func buildDirectedEdge(
+func BuildDirectedEdge(
 	i, j dto.StationDTO,
 	distanceKm float64,
 	tripDuration time.Duration,
@@ -165,12 +165,12 @@ func buildDirectedEdge(
 	nearTariff float64,
 	routeRequest *dto.RouteRequestDTO,
 ) (dto.Edge, bool) {
-	if j.Id == startStationId || i.Id == finishStationId {
+	if j.Id == StartStationId || i.Id == FinishStationId {
 		return dto.Edge{}, false
 	}
 
 	departureCharge := routeRequest.AccMax
-	if i.Id == startStationId {
+	if i.Id == StartStationId {
 		departureCharge = routeRequest.AccLevel
 	}
 
@@ -188,7 +188,7 @@ func buildDirectedEdge(
 		Cost:         driveCost,
 	}
 
-	if j.Id == finishStationId {
+	if j.Id == FinishStationId {
 		return edge, true
 	}
 
