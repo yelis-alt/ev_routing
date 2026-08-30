@@ -12,7 +12,7 @@ import (
 // adjacencyMatrixConcurrency bounds concurrent OpenRouteService calls while
 // building the adjacency matrix; higher than additional.ParallelWorkers()
 // since these are network-bound, not CPU-bound.
-const adjacencyMatrixConcurrency = 16
+const adjacencyMatrixConcurrency = 4
 
 // RoutingService builds the routing graph over V = {S,D} ∪ C_k, using
 // OpenRouteService for each edge's distance/duration.

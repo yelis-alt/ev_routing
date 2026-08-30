@@ -15,7 +15,7 @@ Twelve intra-city trips, each run against all five routing strategies exposed by
 | 7 | Tokyo, Japan | Nissan Ariya | CHAdeMO | 91 kWh | 28°C | 2.7 kWh (3%) | Humid heat, 6 real CHAdeMO stations. |
 | 8 | Saint Petersburg, Russia | Nissan Leaf (gen1, 40 kWh, grey import) | CHAdeMO | 40 kWh | −25°C | 7.2 kWh (18%) | Real municipal data, severe winter, 1 free station. |
 | 9 | Moscow, Russia | Moskvich 3e | CCS | 39 kWh | 22°C | 25.0 kWh (64%) | NO CHARGING NEEDED — ample charge, validates no pointless detour. |
-| 10 | Las Vegas (stress test), USA | Smart EQ fortwo, degraded battery (~31% SOH) | CCS | 5.5 kWh (of 17.6 kWh) | −10°C | 1.0 kWh (18%) | Multi-stop chain, 6 stations, contrasting prices. |
+| 10 | Las Vegas (stress test), USA | Smart EQ fortwo, degraded battery (~31% SOH) | CCS | 5.5 kWh (of 17.6 kWh) | −10°C | 1.0 kWh (18%) | Multi-stop chain, 8 stations along the Fremont St.→Henderson corridor, contrasting prices. |
 | 11 | Saint Petersburg (stress test), Russia | Mitsubishi i-MiEV, degraded battery (~50% SOH) | CHAdeMO | 8 kWh (of 16 kWh) | −15°C | 2.0 kWh (25%) | Same real 6 stations as the SPB case above, longer forced chain. |
 | 12 | Beijing (dense stress test), China | Wuling Hongguang MINI EV, degraded fleet car (~14% SOH) | TYPE_2 | 1.3 kWh (of 9.2 kWh) | −18°C | 1.3 kWh (100%) | 10 real stations, largest search space in this suite. |
 
@@ -68,11 +68,11 @@ Twelve intra-city trips, each run against all five routing strategies exposed by
 | 9 | Moscow | VNS | 1 | - | ₽133.62 | 28.11 km | 34m 11s | 1.785 ms |
 | 9 | Moscow | Branch & Bound | 1 | - | ₽133.62 | 28.11 km | 34m 11s | 0 ns |
 | 9 | Moscow | ACO | 1 | - | ₽133.62 | 28.11 km | 34m 11s | 6.275 ms |
-| 10 | Las Vegas (stress test) | Dijkstra | 6 | 1. (36.1659, -115.1583) \$0.4/kWh<br>2. (36.1985, -115.1937) \$0.18/kWh | \$3.75 | 24.73 km | 39m 51s | 0 ns |
-| 10 | Las Vegas (stress test) | Genetic | 6 | 1. (36.1659, -115.1583) \$0.4/kWh<br>2. (36.1985, -115.1937) \$0.18/kWh | \$3.75 | 24.73 km | 39m 51s | 43.648 ms |
-| 10 | Las Vegas (stress test) | VNS | 6 | 1. (36.1659, -115.1583) \$0.4/kWh<br>2. (36.1985, -115.1937) \$0.18/kWh | \$3.75 | 24.73 km | 39m 51s | 8.885 ms |
-| 10 | Las Vegas (stress test) | Branch & Bound | 6 | 1. (36.1659, -115.1583) \$0.4/kWh<br>2. (36.1985, -115.1937) \$0.18/kWh | \$3.75 | 24.73 km | 39m 51s | 0 ns |
-| 10 | Las Vegas (stress test) | ACO | 6 | 1. (36.1659, -115.1583) \$0.4/kWh<br>2. (36.1985, -115.1937) \$0.18/kWh | \$3.75 | 24.73 km | 39m 51s | 10.817 ms |
+| 10 | Las Vegas (stress test) | Dijkstra | 8 | 1. (36.1659, -115.1387) \$0.4/kWh<br>2. (36.1467, -115.1189) \$0.31/kWh | \$4.26 | 26.03 km | 36m 55s | 175.37 µs |
+| 10 | Las Vegas (stress test) | Genetic | 8 | 1. (36.1659, -115.1387) \$0.4/kWh<br>2. (36.1467, -115.1189) \$0.31/kWh | \$4.26 | 26.03 km | 36m 55s | 19.924 ms |
+| 10 | Las Vegas (stress test) | VNS | 8 | 1. (36.1659, -115.1387) \$0.4/kWh<br>2. (36.1467, -115.1189) \$0.31/kWh | \$4.26 | 26.03 km | 36m 55s | 19.952 ms |
+| 10 | Las Vegas (stress test) | Branch & Bound | 8 | 1. (36.1659, -115.1387) \$0.4/kWh<br>2. (36.1467, -115.1189) \$0.31/kWh | \$4.26 | 26.03 km | 36m 55s | 115.74 µs |
+| 10 | Las Vegas (stress test) | ACO | 8 | 1. (36.1659, -115.1387) \$0.4/kWh<br>2. (36.1453, -115.1029) \$0.28/kWh<br>3. (36.1467, -115.1189) \$0.31/kWh | \$4.96 | 29.63 km | 45m 6s | 30.752 ms |
 | 11 | Saint Petersburg (stress test) | Dijkstra | 6 | 1. (59.9908, 30.2059) ₽40/kWh<br>2. (59.9745, 30.2488) ₽0/kWh<br>3. (59.8366, 30.4272) ₽12/kWh | ₽599.86 | 56.56 km | 2h 37m | 0 ns |
 | 11 | Saint Petersburg (stress test) | Genetic | 6 | 1. (59.9908, 30.2059) ₽40/kWh<br>2. (59.9745, 30.2488) ₽0/kWh<br>3. (59.8366, 30.4272) ₽12/kWh | ₽599.86 | 56.56 km | 2h 37m | 511.316 ms |
 | 11 | Saint Petersburg (stress test) | VNS | 6 | 1. (59.9908, 30.2059) ₽40/kWh<br>2. (59.9745, 30.2488) ₽0/kWh<br>3. (59.8366, 30.4272) ₽12/kWh | ₽599.86 | 56.56 km | 2h 37m | 6.714 ms |
@@ -97,7 +97,7 @@ Twelve intra-city trips, each run against all five routing strategies exposed by
 | 7 | Tokyo | ¥4142.46 | ¥4142.46 | ¥4142.46 | ¥4142.46 | ¥4142.46 | ✅ all 5 match |
 | 8 | Saint Petersburg | ₽1846.86 | ₽1846.86 | ₽1846.86 | ₽1846.86 | ₽1846.86 | ✅ all 5 match |
 | 9 | Moscow | ₽133.62 | ₽133.62 | ₽133.62 | ₽133.62 | ₽133.62 | ✅ all 5 match |
-| 10 | Las Vegas (stress test) | \$3.75 | \$3.75 | \$3.75 | \$3.75 | \$3.75 | ✅ all 5 match |
+| 10 | Las Vegas (stress test) | \$4.26 | \$4.26 | \$4.26 | \$4.26 | \$4.96 | ⚠️ ACO diverges |
 | 11 | Saint Petersburg (stress test) | ₽599.86 | ₽599.86 | ₽599.86 | ₽599.86 | ₽599.86 | ✅ all 5 match |
 | 12 | Beijing (dense stress test) | ¥13.8 | ¥13.8 | ¥13.8 | ¥13.8 | ¥16.41 | ⚠️ ACO diverges |
 
@@ -105,13 +105,13 @@ Twelve intra-city trips, each run against all five routing strategies exposed by
 
 | Algorithm | Optimal | Avg time | Max time | Verdict |
 |---|---|---|---|---|
-| Dijkstra | 12/12 | 42.33 µs | 507.90 µs | Exact and by far the cheapest to run — the right default for this graph size. |
-| Genetic | 12/12 | 234.783 ms | 1.978 s | Exact every time, but 2-4 orders of magnitude slower than Dijkstra with no quality payoff here. |
-| VNS | 12/12 | 10.431 ms | 28.103 ms | Exact every time, moderate cost — the best-value heuristic in this suite. |
-| Branch & Bound | 12/12 | 42.21 µs | 506.50 µs | Exact and essentially as fast as Dijkstra — ties it for best overall. |
-| ACO | 11/12 | 15.327 ms | 31.386 ms | Fast enough, but the only algorithm that ever settled for a worse route. |
+| Dijkstra | 12/12 | 56.94 µs | 507.90 µs | Exact and by far the cheapest to run — the right default for this graph size. |
+| Genetic | 12/12 | 232.806 ms | 1.978 s | Exact every time, but 2-4 orders of magnitude slower than Dijkstra with no quality payoff here. |
+| VNS | 12/12 | 11.353 ms | 28.103 ms | Exact every time, moderate cost — the best-value heuristic in this suite. |
+| Branch & Bound | 12/12 | 51.85 µs | 506.50 µs | Exact and essentially as fast as Dijkstra — ties it for best overall. |
+| ACO | 10/12 | 16.988 ms | 31.386 ms | Fast enough, but the only algorithm that ever settled for a worse route. |
 
-- **Solution quality:** Dijkstra, Branch & Bound, Genetic, and VNS matched the true optimum in **all 12 cases**. ACO alone diverged, and only once the search space got large enough to matter: Beijing (dense stress test) (+18.9%).
-- **Speed:** Dijkstra and Branch & Bound are functionally tied for fastest (both averaged ~42 µs), and neither ever sacrificed solution quality for it — there's no accuracy/speed trade-off between them on graphs this size. VNS was the cheapest of the metaheuristics to run. Genetic was consistently the slowest by a wide margin (up to 1.978 s on the largest graph) for the same answer Dijkstra found in under a millisecond.
-- **Net assessment:** for this problem size, exact methods (Dijkstra, Branch & Bound) dominate — they're both faster and more reliable than any of the three metaheuristics. Of the heuristics, VNS is the effective one; ACO is the one to watch once the candidate set grows large; Genetic's cost never bought it anything a much cheaper exact method didn't already deliver.
+- **Solution quality:** Dijkstra, Branch & Bound, Genetic, and VNS matched the true optimum in **all 12 cases**. ACO diverged twice, both times once the candidate set got dense enough to matter: Las Vegas (stress test) (+16.4%, once its 6-station pool was expanded to 8 real stations along the Fremont St.→Henderson corridor) and Beijing (dense stress test) (+18.9%).
+- **Speed:** Dijkstra and Branch & Bound are functionally tied for fastest (both averaged in the 50-60 µs range), and neither ever sacrificed solution quality for it — there's no accuracy/speed trade-off between them on graphs this size. VNS was the cheapest of the metaheuristics to run. Genetic was consistently the slowest by a wide margin (up to 1.978 s on the largest graph) for the same answer Dijkstra found in under a millisecond.
+- **Net assessment:** for this problem size, exact methods (Dijkstra, Branch & Bound) dominate — they're both faster and more reliable than any of the three metaheuristics. Of the heuristics, VNS is the effective one; ACO is the one to watch once the candidate set grows large — it now has two divergences in this suite, both on the two largest/densest candidate pools; Genetic's cost never bought it anything a much cheaper exact method didn't already deliver.
 - **Moscow** also confirmed the router never charges just because a station is nearby — every algorithm returned the direct route when the battery didn't need topping up.
