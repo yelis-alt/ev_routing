@@ -12,12 +12,6 @@ import (
 	"ev_routing/internal/service/geo"
 )
 
-const (
-	genRep                 = 1000
-	genSuccessRep          = 100
-	minParentsForCrossover = 3
-)
-
 // GeneticRouteService searches an adjacency matrix (from
 // RoutingService.GetAdjacencyMatrix) for the cheapest path via a GA.
 type GeneticRouteService struct{}
@@ -102,11 +96,14 @@ func (s *GeneticRouteService) runIsland(
 	minCost := math.MaxFloat64
 	var bestPathIds []int
 
-	for success < genSuccessRep {
+	for success < additional.GeneticSuccessTarget {
 		rep++
-		log.Printf("Island %d: generation %d out of %d; Successful DNAs: %d", island, rep, genRep, success)
+		log.Printf(
+			"Island %d: generation %d out of %d; Successful DNAs: %d",
+			island, rep, additional.MaxIterations, success,
+		)
 
-		if rep > genRep && success == 0 {
+		if rep > additional.MaxIterations && success == 0 {
 			return nil, math.MaxFloat64
 		}
 
@@ -165,7 +162,10 @@ func (s *GeneticRouteService) runIsland(
 		parent = child
 	}
 
-	log.Printf("Island %d: generation %d out of %d; Successful DNAs: %d", island, rep, genRep, success)
+	log.Printf(
+		"Island %d: generation %d out of %d; Successful DNAs: %d",
+		island, rep, additional.MaxIterations, success,
+	)
 
 	return bestPathIds, minCost
 }
@@ -180,10 +180,11 @@ func (s *GeneticRouteService) getMutation(generation dto.GenerationDTO, geneIds 
 }
 
 // getCrossover combines two prior generations' genes; falls back to a
-// mutation until at least minParentsForCrossover prior generations exist.
+// mutation until at least additional.GeneticMinParentsForCrossover prior
+// generations exist.
 func (s *GeneticRouteService) getCrossover(generation dto.GenerationDTO, geneIds []int) dto.GenerationDTO {
 	parentDnas := generation.Parents
-	if len(parentDnas) < minParentsForCrossover {
+	if len(parentDnas) < additional.GeneticMinParentsForCrossover {
 		mutant := s.getMutation(generation, geneIds)
 		mutant.Parents = append(mutant.Parents, mutant.Dna)
 

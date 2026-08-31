@@ -11,11 +11,6 @@ import (
 	"ev_routing/internal/service/geo"
 )
 
-// dijkstraParallelThreshold is the queue size above which the per-round
-// minimum scan is worth splitting across goroutines; below it, the
-// goroutine-spawn overhead outweighs the win.
-const dijkstraParallelThreshold = 64
-
 // DijkstraRouteService searches an adjacency matrix (from
 // RoutingService.GetAdjacencyMatrix) for the cheapest path via Dijkstra.
 type DijkstraRouteService struct{}
@@ -48,7 +43,13 @@ func (s *DijkstraRouteService) GetRouteWithDijkstra(
 		queue = append(queue, nodeId)
 	}
 
+	rounds := 0
 	for len(queue) > 0 {
+		rounds++
+		if rounds > additional.MaxIterations {
+			log.Printf("Dijkstra: exceeded MaxIterations (%d) rounds, aborting relaxation", additional.MaxIterations)
+			break
+		}
 		log.Printf("Nodes left: %d", len(queue))
 
 		minPos := findMinPos(queue, routeMap)
@@ -85,12 +86,12 @@ func (s *DijkstraRouteService) GetRouteWithDijkstra(
 
 // findMinPos returns the index in queue whose routeMap value is smallest,
 // preferring the first occurrence on ties (matching a plain left-to-right
-// scan). Above dijkstraParallelThreshold, the scan is split into chunks
+// scan). Above additional.DijkstraParallelThreshold, the scan is split into chunks
 // evaluated concurrently and combined in order, which preserves that same
 // tie-break.
 func findMinPos(queue []int, routeMap map[int]float64) int {
 	n := len(queue)
-	if n < dijkstraParallelThreshold {
+	if n < additional.DijkstraParallelThreshold {
 		return scanMinPos(queue, routeMap, 0, n)
 	}
 

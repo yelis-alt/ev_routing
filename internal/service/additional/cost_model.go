@@ -8,14 +8,6 @@ import (
 	"ev_routing/internal/dto"
 )
 
-const (
-	// candidateBufferKm is the Buffer() width, km.
-	candidateBufferKm = 5.0
-
-	// maxCandidateStations is k's coefficient (30 in k = 30(1-...)).
-	maxCandidateStations = 30
-)
-
 // SpecificConsumptionKWhPer100Km is E(T).
 func SpecificConsumptionKWhPer100Km(temperature, e0 float64) float64 {
 	switch {
@@ -39,7 +31,7 @@ func candidateCount(routeRequest *dto.RouteRequestDTO) int {
 	remainingRangeKm := routeRequest.AccLevel / consumption * 100
 	remainingTripKm := haversineDistanceKm(routeRequest.StartCoords, routeRequest.FinishCoords)
 
-	k := maxCandidateStations * (1 - remainingRangeKm/(remainingRangeKm+remainingTripKm))
+	k := MaxCandidateStations * (1 - remainingRangeKm/(remainingRangeKm+remainingTripKm))
 	if k < 0 {
 		k = 0
 	}
@@ -61,7 +53,7 @@ func FilterCandidateStations(routeRequest *dto.RouteRequestDTO) []dto.StationDTO
 	inBuffer := make([]candidate, 0, len(routeRequest.FilteredStations))
 	for _, station := range routeRequest.FilteredStations {
 		lineDistance := distancePointToSegmentKm(station.Coords, start, finish)
-		if lineDistance <= candidateBufferKm {
+		if lineDistance <= CandidateBufferKm {
 			inBuffer = append(inBuffer, candidate{station: station, lineDistance: lineDistance})
 		}
 	}

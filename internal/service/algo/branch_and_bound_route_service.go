@@ -13,10 +13,6 @@ import (
 	"ev_routing/internal/service/geo"
 )
 
-// bnbMaxExpansions caps the number of partial paths explored, guarding
-// against combinatorial blow-up on large candidate pools.
-const bnbMaxExpansions = 100000
-
 // branchAndBoundCandidate is one feasible next hop considered while
 // branching from a partial path.
 type branchAndBoundCandidate struct {
@@ -88,7 +84,7 @@ func (s *BranchAndBoundRouteService) GetRouteWithBranchAndBound(
 // finish, and prunes branches whose cost so far is already >= *bestCost.
 // bestCost/bestPath are shared across concurrently running root branches,
 // so every access to them goes through mu; expansions is a plain atomic
-// counter, allowed to briefly overshoot bnbMaxExpansions under
+// counter, allowed to briefly overshoot additional.MaxIterations under
 // concurrency since it's only a soft exploration cap.
 func branchAndBound(
 	adjacencyMatrix map[int]map[int]dto.Edge,
@@ -101,7 +97,7 @@ func branchAndBound(
 	bestPath *[]int,
 	expansions *atomic.Int64,
 ) {
-	if expansions.Add(1) > bnbMaxExpansions {
+	if expansions.Add(1) > additional.MaxIterations {
 		return
 	}
 

@@ -13,13 +13,6 @@ import (
 	"ev_routing/internal/service/geo"
 )
 
-const (
-	vnsMaxIterations       = 1000
-	vnsMaxNoImprove        = 200
-	vnsKMax                = 3
-	vnsLocalSearchMaxSteps = 50
-)
-
 // vnsSolution is one candidate path in the VNS search, encoded the same way
 // as GeneticRouteService's DNA (node id -> included).
 type vnsSolution struct {
@@ -38,8 +31,8 @@ func NewVNSRouteService() *VNSRouteService {
 	return &VNSRouteService{}
 }
 
-// GetRouteWithVNS runs VNS until vnsMaxIterations shakes or vnsMaxNoImprove
-// stalls, returning the cheapest feasible path found.
+// GetRouteWithVNS runs VNS until additional.MaxIterations shakes or
+// additional.VNSMaxNoImprove stalls, returning the cheapest feasible path found.
 func (s *VNSRouteService) GetRouteWithVNS(
 	adjacencyMatrix map[int]map[int]dto.Edge,
 	routeRequest *dto.RouteRequestDTO,
@@ -74,13 +67,13 @@ func (s *VNSRouteService) GetRouteWithVNS(
 
 	iterations := 0
 	noImprove := 0
-	for iterations < vnsMaxIterations && noImprove < vnsMaxNoImprove {
+	for iterations < additional.MaxIterations && noImprove < additional.VNSMaxNoImprove {
 		k := 1
-		for k <= vnsKMax && iterations < vnsMaxIterations && noImprove < vnsMaxNoImprove {
+		for k <= additional.VNSKMax && iterations < additional.MaxIterations && noImprove < additional.VNSMaxNoImprove {
 			iterations++
 			log.Printf(
 				"Iteration %d out of %d; Neighborhood k=%d; Best cost: %v",
-				iterations, vnsMaxIterations, k, best.cost,
+				iterations, additional.MaxIterations, k, best.cost,
 			)
 
 			shaken := shakeDna(best.dna, k, geneIds)
@@ -136,7 +129,7 @@ func localSearchDna(
 	current := evaluateDna(adjacencyMatrix, dna, geneIds)
 	interiorIds := geneIds[1 : len(geneIds)-1]
 
-	for range vnsLocalSearchMaxSteps {
+	for range additional.VNSLocalSearchMaxSteps {
 		// Each neighbor only reads current.dna, so all flips can be
 		// evaluated concurrently; the best-improvement reduce below stays
 		// sequential (in interiorIds order) to keep tie-breaks deterministic.

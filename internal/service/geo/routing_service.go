@@ -9,11 +9,6 @@ import (
 	"ev_routing/internal/service/additional"
 )
 
-// adjacencyMatrixConcurrency bounds concurrent OpenRouteService calls while
-// building the adjacency matrix; higher than additional.ParallelWorkers()
-// since these are network-bound, not CPU-bound.
-const adjacencyMatrixConcurrency = 4
-
 // RoutingService builds the routing graph over V = {S,D} ∪ C_k, using
 // OpenRouteService for each edge's distance/duration.
 type RoutingService struct {
@@ -33,7 +28,7 @@ type stationPair struct {
 // GetAdjacencyMatrix builds V's edges (see additional.BuildDirectedEdge); a
 // missing edge means that direction is forbidden or infeasible. Each pair's
 // OpenRouteService lookup is independent, so they run concurrently, bounded
-// by adjacencyMatrixConcurrency; the matrix itself is only ever written by
+// by additional.AdjacencyMatrixConcurrency; the matrix itself is only ever written by
 // the calling goroutine, after all lookups complete.
 func (rs *RoutingService) GetAdjacencyMatrix(routeRequest *dto.RouteRequestDTO) (map[int]map[int]dto.Edge, error) {
 	stations := buildOrderedStationList(routeRequest)
@@ -55,7 +50,7 @@ func (rs *RoutingService) GetAdjacencyMatrix(routeRequest *dto.RouteRequestDTO) 
 	routes := make([]*dto.RouteResult, len(pairs))
 	errs := make([]error, len(pairs))
 
-	sem := make(chan struct{}, adjacencyMatrixConcurrency)
+	sem := make(chan struct{}, additional.AdjacencyMatrixConcurrency)
 	var wg sync.WaitGroup
 	for idx, pair := range pairs {
 		wg.Add(1)

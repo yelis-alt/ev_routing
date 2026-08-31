@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"ev_routing/internal/dto"
+	"ev_routing/internal/service/additional"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -36,8 +37,8 @@ func NewService(requestURL, apiKey string) *Service {
 		apiKey:     apiKey,
 		client: &http.Client{
 			Transport: &http.Transport{
-				MaxIdleConns:        adjacencyMatrixConcurrency,
-				MaxIdleConnsPerHost: adjacencyMatrixConcurrency,
+				MaxIdleConns:        additional.AdjacencyMatrixConcurrency,
+				MaxIdleConnsPerHost: additional.AdjacencyMatrixConcurrency,
 			},
 		},
 	}

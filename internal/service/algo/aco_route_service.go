@@ -11,17 +11,6 @@ import (
 	"ev_routing/internal/service/geo"
 )
 
-const (
-	acoIterations       = 200
-	acoAntCount         = 30
-	acoAlpha            = 1.0 // pheromone influence
-	acoBeta             = 3.0 // heuristic (1/cost) influence
-	acoEvaporationRate  = 0.3 // rho
-	acoInitialPheromone = 1.0
-	acoPheromoneDeposit = 100.0 // Q, numerator of the per-ant deposit
-	acoCostEpsilon      = 1e-6  // avoids div-by-zero for zero-cost edges
-)
-
 // acoCandidate is one feasible next hop considered while an ant is at a
 // given node, paired with the edge it would take.
 type acoCandidate struct {
@@ -45,8 +34,8 @@ func NewACORouteService() *ACORouteService {
 	return &ACORouteService{}
 }
 
-// GetRouteWithACO runs acoIterations rounds of acoAntCount ants, updating
-// pheromone each round, and returns the cheapest path any ant found.
+// GetRouteWithACO runs additional.MaxIterations rounds of additional.ACOAntCount
+// ants, updating pheromone each round, and returns the cheapest path any ant found.
 func (s *ACORouteService) GetRouteWithACO(
 	adjacencyMatrix map[int]map[int]dto.Edge,
 	routeRequest *dto.RouteRequestDTO,
@@ -58,7 +47,7 @@ func (s *ACORouteService) GetRouteWithACO(
 	for from, neighbors := range adjacencyMatrix {
 		pheromone[from] = make(map[int]float64, len(neighbors))
 		for to := range neighbors {
-			pheromone[from][to] = acoInitialPheromone
+			pheromone[from][to] = additional.ACOInitialPheromone
 		}
 	}
 
@@ -67,18 +56,18 @@ func (s *ACORouteService) GetRouteWithACO(
 	var bestPath []int
 	bestCost := math.MaxFloat64
 
-	for iteration := range acoIterations {
+	for iteration := range additional.MaxIterations {
 		// Ants only read pheromone this round (it's only mutated below,
 		// after every ant has finished), so they can walk concurrently.
-		antResults := make([]*acoAntResult, acoAntCount)
-		additional.ParallelFor(acoAntCount, func(i int) {
+		antResults := make([]*acoAntResult, additional.ACOAntCount)
+		additional.ParallelFor(additional.ACOAntCount, func(i int) {
 			pathIds, cost, reached := walkAnt(adjacencyMatrix, pheromone, maxSteps)
 			if reached {
 				antResults[i] = &acoAntResult{pathIds: pathIds, cost: cost}
 			}
 		})
 
-		results := make([]acoAntResult, 0, acoAntCount)
+		results := make([]acoAntResult, 0, additional.ACOAntCount)
 		for _, result := range antResults {
 			if result == nil {
 				continue
@@ -96,7 +85,7 @@ func (s *ACORouteService) GetRouteWithACO(
 
 		log.Printf(
 			"Iteration %d out of %d; Ants reached finish: %d out of %d; Best cost: %v",
-			iteration+1, acoIterations, len(results), acoAntCount, bestCost,
+			iteration+1, additional.MaxIterations, len(results), additional.ACOAntCount, bestCost,
 		)
 	}
 
@@ -133,8 +122,8 @@ func walkAnt(
 				continue
 			}
 
-			desirability := 1 / (edge.Cost + acoCostEpsilon)
-			weight := math.Pow(pheromone[currentId][nextId], acoAlpha) * math.Pow(desirability, acoBeta)
+			desirability := 1 / (edge.Cost + additional.ACOCostEpsilon)
+			weight := math.Pow(pheromone[currentId][nextId], additional.ACOAlpha) * math.Pow(desirability, additional.ACOBeta)
 
 			candidates = append(candidates, acoCandidate{id: nextId, edge: edge})
 			weights = append(weights, weight)
@@ -173,20 +162,21 @@ func selectWeightedIndex(weights []float64, totalWeight float64) int {
 }
 
 // evaporatePheromone scales every edge's pheromone down by (1 -
-// acoEvaporationRate), so trails not reinforced this iteration fade out.
+// additional.ACOEvaporationRate), so trails not reinforced this iteration
+// fade out.
 func evaporatePheromone(pheromone map[int]map[int]float64) {
 	for _, neighbors := range pheromone {
 		for to := range neighbors {
-			neighbors[to] *= 1 - acoEvaporationRate
+			neighbors[to] *= 1 - additional.ACOEvaporationRate
 		}
 	}
 }
 
-// depositPheromone adds acoPheromoneDeposit/cost to every edge on each
-// result's path, so cheaper completed paths reinforce their edges more.
+// depositPheromone adds additional.ACOPheromoneDeposit/cost to every edge on
+// each result's path, so cheaper completed paths reinforce their edges more.
 func depositPheromone(pheromone map[int]map[int]float64, results []acoAntResult) {
 	for _, result := range results {
-		deposit := acoPheromoneDeposit / result.cost
+		deposit := additional.ACOPheromoneDeposit / result.cost
 
 		for i := 0; i < len(result.pathIds)-1; i++ {
 			from, to := result.pathIds[i], result.pathIds[i+1]
