@@ -161,9 +161,8 @@ func selectWeightedIndex(weights []float64, totalWeight float64) int {
 	return len(weights) - 1
 }
 
-// evaporatePheromone scales every edge's pheromone down by (1 -
-// additional.ACOEvaporationRate), so trails not reinforced this iteration
-// fade out.
+// Scales every edge's pheromone by (1 - ACOEvaporationRate).
+// Trails not reinforced this iteration fade out.
 func evaporatePheromone(pheromone map[int]map[int]float64) {
 	for _, neighbors := range pheromone {
 		for to := range neighbors {

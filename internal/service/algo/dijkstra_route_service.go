@@ -84,11 +84,8 @@ func (s *DijkstraRouteService) GetRouteWithDijkstra(
 	return geo.GetRouteNodesFromIds(adjacencyMatrix, pathIds, routeRequest)
 }
 
-// findMinPos returns the index in queue whose routeMap value is smallest,
-// preferring the first occurrence on ties (matching a plain left-to-right
-// scan). Above additional.DijkstraParallelThreshold, the scan is split into chunks
-// evaluated concurrently and combined in order, which preserves that same
-// tie-break.
+// Min-cost index in queue, first occurrence wins ties.
+// Above DijkstraParallelThreshold, splits into chunks scanned concurrently, same tie-break.
 func findMinPos(queue []int, routeMap map[int]float64) int {
 	n := len(queue)
 	if n < additional.DijkstraParallelThreshold {

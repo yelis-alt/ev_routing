@@ -46,9 +46,8 @@ func (s *BranchAndBoundRouteService) GetRouteWithBranchAndBound(
 	rootVisited := map[int]bool{additional.StartStationId: true}
 	rootCandidates := candidatesFrom(adjacencyMatrix, additional.StartStationId, rootVisited)
 
-	// Each root candidate starts its own DFS branch with an independent
-	// visited/path, so branches run concurrently; only the shared best and
-	// expansion counter need synchronization.
+	// Each root candidate gets its own DFS branch (independent visited/path), run concurrently.
+	// Only shared best/expansion counter need synchronization.
 	additional.ParallelFor(len(rootCandidates), func(idx int) {
 		candidate := rootCandidates[idx]
 
@@ -80,12 +79,8 @@ func (s *BranchAndBoundRouteService) GetRouteWithBranchAndBound(
 	return geo.GetRouteNodesFromIds(adjacencyMatrix, bestPath, routeRequest)
 }
 
-// branchAndBound extends path from currentId, updates best on a cheaper
-// finish, and prunes branches whose cost so far is already >= *bestCost.
-// bestCost/bestPath are shared across concurrently running root branches,
-// so every access to them goes through mu; expansions is a plain atomic
-// counter, allowed to briefly overshoot additional.MaxIterations under
-// concurrency since it's only a soft exploration cap.
+// Extends path from currentId, updates best on cheaper finish, prunes if costSoFar >= *bestCost.
+// bestCost/bestPath shared across branches via mu; expansions is a soft atomic cap, may overshoot.
 func branchAndBound(
 	adjacencyMatrix map[int]map[int]dto.Edge,
 	currentId int,

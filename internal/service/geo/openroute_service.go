@@ -27,10 +27,8 @@ type Service struct {
 	client     *http.Client
 }
 
-// NewService builds a Service that sends requests to requestURL,
-// authenticated with apiKey. Its client's connection pool is sized above
-// the default so RoutingService can fetch many routes concurrently without
-// serializing on connection reuse.
+// Connection pool sized above default so RoutingService can fetch many routes concurrently.
+// Avoids serializing on connection reuse.
 func NewService(requestURL, apiKey string) *Service {
 	return &Service{
 		requestURL: requestURL,

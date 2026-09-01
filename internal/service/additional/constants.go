@@ -17,17 +17,12 @@ const (
 // FilterCandidateStations.
 const MaxCandidateStations = 30
 
-// MaxGraphNodes is the largest the routing graph V = {S, D} ∪ C_k can ever
-// be: MaxCandidateStations candidates plus the two synthetic start/finish
-// vertices.
+// MaxGraphNodes = MaxCandidateStations candidates + start/finish vertices.
+// Largest possible V = {S, D} ∪ C_k.
 const MaxGraphNodes = MaxCandidateStations + 2
 
-// MaxIterations is the shared iteration cap used by every search strategy in
-// internal/service/algo (Dijkstra's relaxation rounds, Branch & Bound's
-// expansion count, the genetic algorithm's per-island generation attempts,
-// VNS's shake rounds, and ACO's iteration count) — sized off MaxGraphNodes
-// so it scales correctly if that cap ever changes, and kept identical across
-// all five so none is tuned more generously than another.
+// Shared iteration cap for all five search strategies (relaxation rounds, expansions, generations, shakes, ants).
+// Sized off MaxGraphNodes so none is tuned more generously than another.
 const MaxIterations = MaxGraphNodes * MaxGraphNodes
 
 const (
@@ -35,23 +30,20 @@ const (
 	// FilterCandidateStations.
 	CandidateBufferKm = 5.0
 
-	// AdjacencyMatrixConcurrency bounds concurrent OpenRouteService calls
-	// while building the adjacency matrix; higher than ParallelWorkers()
-	// since these are network-bound, not CPU-bound.
+	// Bounds concurrent OpenRouteService calls while building the adjacency matrix.
+	// Higher than ParallelWorkers() since these are network-bound, not CPU-bound.
 	AdjacencyMatrixConcurrency = 4
 
-	// DijkstraParallelThreshold is the queue size above which Dijkstra's
-	// per-round minimum scan is worth splitting across goroutines; below
-	// it, the goroutine-spawn overhead outweighs the win.
+	// Queue size above which Dijkstra's minimum scan is worth splitting across goroutines.
+	// Below it, goroutine-spawn overhead outweighs the win.
 	DijkstraParallelThreshold = 64
 
 	// GeneticSuccessTarget is how many valid DNAs a genetic-algorithm
 	// island collects before it stops and returns its cheapest one.
 	GeneticSuccessTarget = MaxGraphNodes * 3
 
-	// GeneticMinParentsForCrossover is the minimum generation history a
-	// genetic-algorithm island needs before crossover can run; below it,
-	// crossover degrades to mutation.
+	// Minimum generation history a GA island needs before crossover can run.
+	// Below it, crossover degrades to mutation.
 	GeneticMinParentsForCrossover = 3
 
 	// VNSMaxNoImprove stops VNS after this many shake rounds in a row
@@ -61,9 +53,8 @@ const (
 	// VNSKMax is the largest VNS shake-neighborhood size.
 	VNSKMax = 3
 
-	// VNSLocalSearchMaxSteps caps VNS's local-descent rounds; each round
-	// flips one interior gene, so more than MaxGraphNodes rounds without
-	// converging means the descent isn't going to converge.
+	// Caps VNS's local-descent rounds (each flips one interior gene).
+	// Past MaxGraphNodes rounds without converging, it isn't going to.
 	VNSLocalSearchMaxSteps = MaxGraphNodes
 
 	// ACOAntCount is the number of ants walked per ACO iteration; one per

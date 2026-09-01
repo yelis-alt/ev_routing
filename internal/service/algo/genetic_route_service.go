@@ -44,9 +44,8 @@ func (s *GeneticRouteService) GetRouteWithEvolution(
 	}
 	sort.Ints(geneIds)
 
-	// Each island runs the hill-climb independently (its own parent/child
-	// lineage, unshared across goroutines), so they run in parallel; the
-	// cheapest path across all islands wins.
+	// Islands run independently (own parent/child lineage) in parallel.
+	// Cheapest path across all islands wins.
 	islands := additional.ParallelWorkers()
 	islandPathIds := make([][]int, islands)
 	islandCosts := make([]float64, islands)
@@ -71,9 +70,8 @@ func (s *GeneticRouteService) GetRouteWithEvolution(
 	return geo.GetRouteNodesFromIds(adjacencyMatrix, islandPathIds[bestIsland], routeRequest)
 }
 
-// runIsland runs one independent instance of the mutation/crossover
-// hill-climb described on GetRouteWithEvolution, returning the cheapest
-// valid path it found (nil, +Inf if it never found one).
+// One independent mutation/crossover hill-climb instance.
+// Returns cheapest valid path found (nil, +Inf if none).
 func (s *GeneticRouteService) runIsland(
 	island int,
 	adjacencyMatrix map[int]map[int]dto.Edge,
@@ -179,9 +177,8 @@ func (s *GeneticRouteService) getMutation(generation dto.GenerationDTO, geneIds 
 	return generation
 }
 
-// getCrossover combines two prior generations' genes; falls back to a
-// mutation until at least additional.GeneticMinParentsForCrossover prior
-// generations exist.
+// Combines two prior generations' genes.
+// Falls back to mutation until GeneticMinParentsForCrossover prior generations exist.
 func (s *GeneticRouteService) getCrossover(generation dto.GenerationDTO, geneIds []int) dto.GenerationDTO {
 	parentDnas := generation.Parents
 	if len(parentDnas) < additional.GeneticMinParentsForCrossover {

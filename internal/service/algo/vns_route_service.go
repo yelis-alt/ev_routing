@@ -130,9 +130,8 @@ func localSearchDna(
 	interiorIds := geneIds[1 : len(geneIds)-1]
 
 	for range additional.VNSLocalSearchMaxSteps {
-		// Each neighbor only reads current.dna, so all flips can be
-		// evaluated concurrently; the best-improvement reduce below stays
-		// sequential (in interiorIds order) to keep tie-breaks deterministic.
+		// Flips only read current.dna, so evaluate concurrently.
+		// Reduce stays sequential (interiorIds order) for deterministic tie-breaks.
 		neighbors := make([]vnsSolution, len(interiorIds))
 		additional.ParallelFor(len(interiorIds), func(idx int) {
 			neighborDna := copyDna(current.dna)

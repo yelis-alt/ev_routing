@@ -25,11 +25,8 @@ type stationPair struct {
 	i, j int
 }
 
-// GetAdjacencyMatrix builds V's edges (see additional.BuildDirectedEdge); a
-// missing edge means that direction is forbidden or infeasible. Each pair's
-// OpenRouteService lookup is independent, so they run concurrently, bounded
-// by additional.AdjacencyMatrixConcurrency; the matrix itself is only ever written by
-// the calling goroutine, after all lookups complete.
+// Builds V's edges; a missing edge means that direction is forbidden or infeasible.
+// Pair lookups run concurrently (bounded by AdjacencyMatrixConcurrency), matrix written after all complete.
 func (rs *RoutingService) GetAdjacencyMatrix(routeRequest *dto.RouteRequestDTO) (map[int]map[int]dto.Edge, error) {
 	stations := buildOrderedStationList(routeRequest)
 	candidateStations := stations[1 : len(stations)-1]
