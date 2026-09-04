@@ -259,15 +259,15 @@ of them are booked, or none are.
 
 ```
 cmd/server            entry point
-config/                config loading and config.yaml
-internal/dto/          request/response types
-internal/controller/   HTTP handlers
-internal/service/      cost model, routing graph, Dijkstra/genetic/VNS/
-                        branch-and-bound/ACO search, OpenRouteService
-                        client, and the schedule (booking) service
-internal/repository/   database access (Postgres, via database/sql)
-migrations/            SQL schema, applied on the Postgres container's
-                        first start
-Dockerfile             container build
-docker-compose.yml     local run via Docker (server + Postgres)
+config/               config loading and config.yaml
+internal/dto/         request/response types
+internal/controller/  HTTP handlers
+internal/service/     cost model, routing graph, Dijkstra/genetic/VNS/
+                      branch-and-bound/ACO search, OpenRouteService
+                      client, and the schedule (booking) service
+internal/repository/  database access (Postgres, via database/sql)
+migrations/           SQL schema, applied on the Postgres container's
+                      first start
+Dockerfile            container build
+docker-compose.yml    local run via Docker (server + Postgres)
 ```
